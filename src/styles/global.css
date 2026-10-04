@@ -236,3 +236,8 @@ code { background: var(--surface); padding: 0.1rem 0.3rem; border-radius: 4px; }
 @media (prefers-reduced-motion: no-preference) {
   .seg-btn, .chip { transition: background-color 0.12s, color 0.12s; }
 }
+
+/* Text pages (the notice): headings and paragraphs sit directly in <main>. */
+main > h2 { margin: var(--s6) 0 var(--s2); font-size: var(--fs-lg); font-weight: 800; letter-spacing: -0.01em; }
+main > p { max-width: 62ch; }
+.privacy a { white-space: nowrap; }

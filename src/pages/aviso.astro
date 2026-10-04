@@ -1,0 +1,39 @@
+---
+import Layout from '../components/Layout.astro';
+import { allSources, loadCities } from '../lib/data';
+import { ISSUES_URL } from '../lib/privacy';
+
+const cities = loadCities();
+const tz = cities[0]?.timezone ?? 'America/Monterrey';
+---
+<Layout
+  title="Aviso y retiro de contenido | Qué hacer"
+  description="De dónde salen los datos de Qué hacer, qué información se carga al visitar el sitio y cómo pedir que se retire un evento."
+  sources={allSources(cities)}
+  timeZone={tz}
+>
+  <h1>Aviso y retiro de contenido</h1>
+
+  <h2>De dónde salen los datos</h2>
+  <p>
+    Qué hacer reúne en una sola lista eventos publicados por otras fuentes. Cada evento enlaza a su página original, donde
+    puedes confirmar horarios y precios. Las fuentes de cada ciudad aparecen al pie de cada página. Los nombres, textos e
+    imágenes pertenecen a sus titulares; este sitio no reclama derechos sobre ellos.
+  </p>
+
+  <h2>Privacidad</h2>
+  <p>
+    El sitio no tiene cuentas, no usa cookies ni analítica y no carga scripts, fuentes ni estilos de terceros. Lo único que tu
+    navegador pide a otros sitios son las imágenes de los eventos (la lista de sitios está al pie de cada página); esos sitios
+    pueden ver tu dirección IP y nosotros no les enviamos referencia. El alojamiento (GitHub Pages) puede registrar visitas
+    según sus propias políticas.
+  </p>
+
+  <h2>Pedir que se retire un evento o una imagen</h2>
+  <p>
+    Si eres titular de un contenido, organizas un evento o crees que algo no debería aparecer, abre una solicitud en
+    <a href={ISSUES_URL} rel="noopener noreferrer" target="_blank">GitHub Issues</a>. Indica el enlace del evento en
+    esta página o en su fuente original y, si aplica, qué debe retirarse (el evento, la imagen o ambos). Retiraremos el
+    contenido y lo excluiremos de las próximas actualizaciones para que no vuelva a aparecer.
+  </p>
+</Layout>

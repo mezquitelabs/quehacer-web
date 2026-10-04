@@ -3,6 +3,7 @@ import '../styles/global.css';
 import { withBase } from '../lib/url';
 import { formatUpdated } from '../lib/format';
 import { loadCities, meta } from '../lib/data';
+import { imageHosts } from '../lib/privacy';
 import type { SourceRef } from '../lib/types';
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 const { title, description, sources, timeZone, citySlug, canonicalPath } = Astro.props;
 const cities = loadCities();
 const current = cities.find((c) => c.slug === citySlug);
+const hosts = imageHosts(cities);
 const canonical = Astro.site ? new URL(canonicalPath ?? Astro.url.pathname, Astro.site).href : null;
 ---
 <!doctype html>
@@ -63,6 +65,11 @@ const canonical = Astro.site ? new URL(canonicalPath ?? Astro.url.pathname, Astr
         </p>
       )}
       <p class="notice">Los eventos provienen de fuentes de terceros y cada uno enlaza a su página original. No se reclaman derechos sobre esos datos.</p>
+      <p class="privacy">
+        Este sitio no usa cookies, analítica ni scripts, fuentes o estilos de terceros.
+        {hosts.length > 0 && <>Las imágenes de los eventos se cargan directamente desde {hosts.join(', ')}, que pueden ver tu dirección IP; no les enviamos referencia.</>}
+        {' '}<a href={withBase('aviso/')}>Aviso y retiro de contenido</a>.
+      </p>
       <p>Actualizado: <time datetime={meta.generated_at}>{formatUpdated(meta.generated_at, timeZone)}</time> (hora local). Verifica horarios y precios en la página original.</p>
     </footer>
   <script>
