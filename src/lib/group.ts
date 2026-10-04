@@ -40,3 +40,19 @@ export function groupDay<T extends { venue: string | null; start: string }>(even
   }
   return items;
 }
+
+/** The `source` name the export gives to the Cineteca; only its screenings are "funciones". */
+export const CINETECA_SOURCE = 'Cineteca Nuevo León';
+
+export type GroupKind = 'funcion' | 'actividad';
+
+/** "funcion" only when EVERY item comes from the Cineteca source, otherwise the neutral "actividad". */
+export function groupKind(events: { source: string }[]): GroupKind {
+  return events.length > 0 && events.every((e) => e.source === CINETECA_SOURCE) ? 'funcion' : 'actividad';
+}
+
+/** The label after the count: "función"/"funciones" or "actividad"/"actividades". */
+export function groupNoun(kind: GroupKind, n: number): string {
+  const singular = kind === 'funcion' ? 'función' : 'actividad';
+  return n === 1 ? singular : kind === 'funcion' ? 'funciones' : 'actividades';
+}

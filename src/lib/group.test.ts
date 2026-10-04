@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fixture from './fixtures/busy-day.json'; // synthetic: 10 invented screenings at one venue plus 3 events elsewhere
-import { DEFAULT_GROUP_MIN, groupDay, groupMinFromEnv } from './group';
+import { CINETECA_SOURCE, DEFAULT_GROUP_MIN, groupDay, groupKind, groupMinFromEnv, groupNoun } from './group';
 
 type Ev = { id: string; venue: string | null; start: string };
 const ev = (id: string, hour: number, venue: string | null = 'Sala A'): Ev => ({ id, venue, start: `2026-10-10T${String(hour).padStart(2, '0')}:00:00-06:00` });
@@ -74,5 +74,24 @@ describe('what is and is not grouped', () => {
   });
   it('returns nothing for an empty day', () => {
     expect(groupDay([])).toEqual([]);
+  });
+});
+
+describe('group noun: "funciones" only for the Cineteca', () => {
+  const cine = { source: CINETECA_SOURCE };
+  const other = { source: 'Ticketmaster' };
+  it('is "funcion" when every item comes from the Cineteca', () => {
+    expect(groupKind([cine, cine, cine, cine])).toBe('funcion');
+    expect(groupNoun('funcion', 4)).toBe('funciones');
+    expect(groupNoun('funcion', 1)).toBe('función');
+  });
+  it('is "actividad" as soon as one item comes from anywhere else', () => {
+    expect(groupKind([cine, cine, cine, other])).toBe('actividad');
+    expect(groupKind([other, other, other, other])).toBe('actividad');
+    expect(groupNoun('actividad', 4)).toBe('actividades');
+    expect(groupNoun('actividad', 1)).toBe('actividad');
+  });
+  it('an empty list is never "funcion"', () => {
+    expect(groupKind([])).toBe('actividad');
   });
 });

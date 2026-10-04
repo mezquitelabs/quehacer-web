@@ -1,5 +1,6 @@
 ---
 import { formatTime } from '../lib/format';
+import { groupKind, groupNoun } from '../lib/group';
 import type { EventItem } from '../lib/types';
 
 interface Props {
@@ -9,11 +10,12 @@ interface Props {
 }
 const { venue, events, timeZone } = Astro.props;
 const n = events.length;
+const kind = groupKind(events);
 ---
-<li class="event group" data-group>
+<li class="event group" data-group data-kind={kind}>
   <details>
     <summary>
-      <span class="group-venue">{venue}</span> · <span data-group-n>{n}</span> <span data-group-label>{n === 1 ? 'función' : 'funciones'}</span>
+      <span class="group-venue">{venue}</span> · <span data-group-n>{n}</span> <span data-group-label>{groupNoun(kind, n)}</span>
     </summary>
     <ul class="functions">
       {events.map((event) => {

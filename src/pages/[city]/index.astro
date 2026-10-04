@@ -92,6 +92,7 @@ const names = city.sources.map((s) => s.name).join(', ');
   <script is:inline type="application/json" id="events-data" set:html={json}></script>
   <script>
     import { CATEGORIES, categoryCounts, liveEvents, shownCategories, visibleIds, type DayFilter, type Filterable, type Timed } from '../../lib/filters';
+    import { groupNoun } from '../../lib/group';
     import type { Category } from '../../lib/types';
 
     // Images that fail to load (a source moved or blocked them) simply disappear; the card stays complete.
@@ -129,7 +130,7 @@ const names = city.sources.map((s) => s.name).join(', ');
           const n = group.querySelectorAll('[data-id]:not([hidden])').length;
           group.hidden = n === 0;
           group.querySelector('[data-group-n]')!.textContent = String(n);
-          group.querySelector('[data-group-label]')!.textContent = n === 1 ? 'función' : 'funciones';
+          group.querySelector('[data-group-label]')!.textContent = groupNoun(group.dataset.kind === 'funcion' ? 'funcion' : 'actividad', n);
         }
         for (const section of sections) section.hidden = !section.querySelector('[data-id]:not([hidden])');
         const counts = categoryCounts(live, state.day, now, timeZone);
