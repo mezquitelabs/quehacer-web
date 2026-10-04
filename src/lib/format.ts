@@ -11,6 +11,11 @@ export function formatDayHeading(key: string, withYear = false): string {
   return new Intl.DateTimeFormat(LOCALE, { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) }).format(date);
 }
 
+/** "martes 6" for a YYYY-MM-DD key. */
+export function formatDayShort(key: string): string {
+  return new Intl.DateTimeFormat(LOCALE, { timeZone: 'UTC', weekday: 'long', day: 'numeric' }).format(new Date(`${key}T12:00:00Z`));
+}
+
 export function formatShortDate(iso: string, timeZone: string, withYear = false): string {
   return new Intl.DateTimeFormat(LOCALE, { timeZone, day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) }).format(new Date(iso));
 }
@@ -45,4 +50,21 @@ export function hostOf(url: string): string {
  */
 export function formatVenue(venue: string): string {
   return venue.split(' | ')[0].replace(/ I /g, ' · ').trim();
+}
+
+/**
+ * The short form shown in rows (display only, the data is unchanged): formatVenue, then text in double quotes is
+ * dropped and " - " becomes " · ".
+ *   'Cineteca "Alejandra Rangel Hinojosa" - Centro de las Artes'  ->  'Cineteca · Centro de las Artes'
+ * Falls back to formatVenue when shortening would leave nothing.
+ */
+export function shortVenue(venue: string): string {
+  const full = formatVenue(venue);
+  const short = full
+    .replace(/["“”„][^"“”„]*["“”„]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/ - /g, ' · ')
+    .replace(/^[\s·-]+|[\s·-]+$/g, '')
+    .replace(/(?: · ){2,}/g, ' · ');
+  return short === '' ? full : short;
 }

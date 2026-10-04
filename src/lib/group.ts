@@ -56,3 +56,29 @@ export function groupNoun(kind: GroupKind, n: number): string {
   const singular = kind === 'funcion' ? 'función' : 'actividad';
   return n === 1 ? singular : kind === 'funcion' ? 'funciones' : 'actividades';
 }
+
+/** Where grouped rows sit inside a day: after the single events (true) or in time order among them (false). */
+export const GROUPS_AFTER_SINGLES = true;
+
+/** Single events first (time order kept), then the groups (time order kept), when `groupsLast`. */
+export function placeGroups<T>(items: DayItem<T>[], groupsLast: boolean = GROUPS_AFTER_SINGLES): DayItem<T>[] {
+  if (!groupsLast) return items;
+  return [...items.filter((i) => i.kind === 'event'), ...items.filter((i) => i.kind === 'group')];
+}
+
+/** The most common category among the events (the first one on a tie), for the row's colour bar. */
+export function dominantCategory<C extends string>(events: { category: C }[]): C | undefined {
+  const counts = new Map<C, number>();
+  for (const e of events) counts.set(e.category, (counts.get(e.category) ?? 0) + 1);
+  let best: C | undefined;
+  for (const [c, n] of counts) if (best === undefined || n > counts.get(best)!) best = c;
+  return best;
+}
+
+/** "14:00–20:45", "14:00" for one time, or null; takes zero-padded 24 h "HH:MM" strings. */
+export function timeRange(times: string[]): string | null {
+  if (times.length === 0) return null;
+  const sorted = [...times].sort();
+  const [first, last] = [sorted[0], sorted[sorted.length - 1]];
+  return first === last ? first : `${first}–${last}`;
+}

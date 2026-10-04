@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fixture from './fixtures/busy-day.json'; // synthetic: 10 invented screenings at one venue plus 3 events elsewhere
-import { CINETECA_SOURCE, DEFAULT_GROUP_MIN, groupDay, groupKind, groupMinFromEnv, groupNoun } from './group';
+import { CINETECA_SOURCE, DEFAULT_GROUP_MIN, dominantCategory, groupDay, groupKind, groupMinFromEnv, groupNoun, placeGroups, timeRange } from './group';
 
 type Ev = { id: string; venue: string | null; start: string };
 const ev = (id: string, hour: number, venue: string | null = 'Sala A'): Ev => ({ id, venue, start: `2026-10-10T${String(hour).padStart(2, '0')}:00:00-06:00` });
@@ -93,5 +93,25 @@ describe('group noun: "funciones" only for the Cineteca', () => {
   });
   it('an empty list is never "funcion"', () => {
     expect(groupKind([])).toBe('actividad');
+  });
+});
+
+describe('placement and group row helpers', () => {
+  const items = groupDay<Ev>([ev('a', 10), ev('g1', 11, 'Cine'), ev('g2', 12, 'Cine'), ev('g3', 13, 'Cine'), ev('g4', 14, 'Cine'), ev('b', 15)]);
+  it('puts groups after the single events, keeping time order', () => {
+    expect(ids(placeGroups(items, true))).toEqual(['a', 'b', '[g1,g2,g3,g4]']);
+  });
+  it('can keep groups in time order', () => {
+    expect(ids(placeGroups(items, false))).toEqual(['a', '[g1,g2,g3,g4]', 'b']);
+  });
+  it('picks the most common category, the first on a tie', () => {
+    expect(dominantCategory([{ category: 'film' }, { category: 'film' }, { category: 'arts' }])).toBe('film');
+    expect(dominantCategory([{ category: 'arts' }, { category: 'film' }])).toBe('arts');
+    expect(dominantCategory([])).toBeUndefined();
+  });
+  it('builds a time range', () => {
+    expect(timeRange(['20:45', '14:00', '16:00'])).toBe('14:00–20:45');
+    expect(timeRange(['14:00', '14:00'])).toBe('14:00');
+    expect(timeRange([])).toBeNull();
   });
 });

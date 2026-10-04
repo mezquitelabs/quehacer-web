@@ -1,13 +1,20 @@
 import type { Category } from './types';
 
-export type DayFilter = 'todos' | 'hoy' | 'finde' | '7dias';
+/** A single calendar day, YYYY-MM-DD (what "see upcoming events" jumps to). */
+export type DateKey = `${number}-${number}-${number}`;
+export type DayPreset = 'todos' | 'hoy' | 'manana' | 'finde' | '7dias';
+export type DayFilter = DayPreset | DateKey;
 
-export const DAY_FILTERS: { id: DayFilter; label: string }[] = [
-  { id: 'hoy', label: 'Hoy' },
-  { id: 'finde', label: 'Este fin de semana' },
-  { id: '7dias', label: 'Próximos 7 días' },
-  { id: 'todos', label: 'Todos' },
+/** The date control, in order. `short` is what narrow screens show; `label` is always the accessible name. */
+export const DAY_FILTERS: { id: DayPreset; label: string; short: string }[] = [
+  { id: 'hoy', label: 'Hoy', short: 'Hoy' },
+  { id: 'manana', label: 'Mañana', short: 'Mañana' },
+  { id: 'finde', label: 'Fin de semana', short: 'Finde' },
+  { id: '7dias', label: 'Próximos 7 días', short: '7 días' },
+  { id: 'todos', label: 'Todo', short: 'Todo' },
 ];
+
+export const isDateKey = (value: string): value is DateKey => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 /** In chip order. */
 export const CATEGORIES: { id: Category; label: string }[] = [
@@ -32,6 +39,8 @@ export interface Filterable {
   id: string;
   day: string;
   cat: Category;
+  /** Known to be free (`is_free === true`); unknown is not free. */
+  free?: boolean;
 }
 
 /** YYYY-MM-DD of an instant in the CITY's timezone (never the browser's), so dates near midnight are right. */
@@ -60,11 +69,16 @@ export function weekday(key: string): number {
 /** Inclusive [from, to] of local dates for a day filter, or null for "todos". */
 export function dayRange(filter: DayFilter, now: Date, timeZone: string): { from: string; to: string } | null {
   const today = localDateKey(now, timeZone);
+  if (isDateKey(filter)) return { from: filter, to: filter };
   switch (filter) {
     case 'todos':
       return null;
     case 'hoy':
       return { from: today, to: today };
+    case 'manana': {
+      const tomorrow = addDays(today, 1);
+      return { from: tomorrow, to: tomorrow };
+    }
     case '7dias':
       return { from: today, to: addDays(today, 6) }; // today plus the next six days
     case 'finde': {
@@ -89,20 +103,22 @@ export function matchesCategory(cat: Category, selected: ReadonlySet<Category>):
 export interface FilterState {
   day: DayFilter;
   categories: ReadonlySet<Category>;
+  /** Only events known to be free. */
+  free?: boolean;
 }
 
 export function visibleIds(events: Filterable[], state: FilterState, now: Date, timeZone: string): Set<string> {
   return new Set(
     events
-      .filter((e) => matchesDay(e.day, state.day, now, timeZone) && matchesCategory(e.cat, state.categories))
+      .filter((e) => matchesDay(e.day, state.day, now, timeZone) && matchesCategory(e.cat, state.categories) && (!state.free || e.free === true))
       .map((e) => e.id),
   );
 }
 
-/** Events per category among those that pass the DAY filter (the chip counts), regardless of selected chips. */
-export function categoryCounts(events: Filterable[], day: DayFilter, now: Date, timeZone: string): Record<Category, number> {
+/** Events per category among those that pass the DAY filter (and Gratis, if on): the chip counts, regardless of selected chips. */
+export function categoryCounts(events: Filterable[], day: DayFilter, now: Date, timeZone: string, free = false): Record<Category, number> {
   const counts = Object.fromEntries(CATEGORIES.map((c) => [c.id, 0])) as Record<Category, number>;
-  for (const e of events) if (matchesDay(e.day, day, now, timeZone)) counts[normalizeCategory(e.cat)] += 1;
+  for (const e of events) if (matchesDay(e.day, day, now, timeZone) && (!free || e.free === true)) counts[normalizeCategory(e.cat)] += 1;
   return counts;
 }
 
@@ -113,6 +129,31 @@ export function categoryCounts(events: Filterable[], day: DayFilter, now: Date, 
  */
 export function shownCategories(counts: Record<Category, number>, selected: ReadonlySet<Category>): Set<Category> {
   return new Set(CATEGORIES.map((c) => c.id).filter((id) => counts[id] > 0 || selected.has(id)));
+}
+
+/** Categories with fewer events than this stay out of the visible filter UI (their events still show under every other filter). */
+export const MIN_CATEGORY_COUNT = 2;
+
+/** `shownCategories`, minus the nearly empty ones; a selected category always stays so it can be un-selected. */
+export function primaryCategories(counts: Record<Category, number>, selected: ReadonlySet<Category>, min = MIN_CATEGORY_COUNT): Set<Category> {
+  return new Set(CATEGORIES.map((c) => c.id).filter((id) => counts[id] >= min || selected.has(id)));
+}
+
+/**
+ * What the page opens on: "hoy" when something is still on today, otherwise the next day that has events,
+ * otherwise "todos". `events` should already be the live ones (see liveEvents).
+ */
+export function defaultDay(events: Filterable[], now: Date, timeZone: string): DayFilter {
+  const today = localDateKey(now, timeZone);
+  const days = events.map((e) => e.day).filter((d) => d >= today).sort();
+  if (days.length === 0) return 'todos';
+  return days[0] === today ? 'hoy' : (days[0] as DateKey);
+}
+
+/** The first day after `after` (YYYY-MM-DD, exclusive) with an event, or null. */
+export function nextDayWithEvents(events: Filterable[], after: string): DateKey | null {
+  const days = events.map((e) => e.day).filter((d) => d > after).sort();
+  return (days[0] as DateKey | undefined) ?? null;
 }
 
 /** An event with no end time is treated as over this many hours after it started. */

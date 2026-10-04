@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatVenue } from './format';
+import { formatVenue, shortVenue } from './format';
 
 describe('formatVenue', () => {
   it('keeps only the text before " | "', () => {
@@ -18,5 +18,20 @@ describe('formatVenue', () => {
     expect(formatVenue('Arena Monterrey')).toBe('Arena Monterrey');
     expect(formatVenue('Auditorio Demo')).toBe('Auditorio Demo');
     expect(formatVenue('Isla I')).toBe('Isla I'); // no spaces on both sides: not a separator
+  });
+});
+
+describe('shortVenue', () => {
+  it('drops quoted text and turns " - " into " · "', () => {
+    expect(shortVenue('Cineteca "Alejandra Rangel Hinojosa" - Centro de las Artes | CONARTE')).toBe('Cineteca · Centro de las Artes');
+    expect(shortVenue('Cinema Demo "Sala Azul" - Centro Ejemplo')).toBe('Cinema Demo · Centro Ejemplo');
+    expect(shortVenue('Teatro “Grande” Norte')).toBe('Teatro Norte');
+  });
+  it('keeps the CONARTE " I " separator rule and plain venues', () => {
+    expect(shortVenue('Teatro de la Ciudad I Sala Grande')).toBe('Teatro de la Ciudad · Sala Grande');
+    expect(shortVenue('Arena Monterrey')).toBe('Arena Monterrey');
+  });
+  it('never returns an empty string', () => {
+    expect(shortVenue('"Solo comillas"')).toBe('"Solo comillas"');
   });
 });
