@@ -32,7 +32,7 @@ const items = [...city.ongoing].sort((a, b) => (a.end ?? '9999').localeCompare(b
         <div class="event-body">
           <p class="event-meta">
             <span class="range">{formatRange(o.start, o.end, tz)}</span>
-            <span class="cat">{categoryLabel(o.category)}</span>
+            <span class="cat"><span class="dot" data-dot={o.category} aria-hidden="true"></span>{categoryLabel(o.category)}</span>
           </p>
           <h2 class="event-title">{o.title}</h2>
           {o.venue && <p class="event-venue">{formatVenue(o.venue)}</p>}

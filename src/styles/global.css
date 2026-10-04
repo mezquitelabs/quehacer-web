@@ -10,6 +10,17 @@
   --badge-bg: #dcfce7;
   --badge-text: #14532d;
   --focus: #1d4ed8;
+  /* Category dots: each >= 4.5:1 on both --bg and --surface (checked by labels.test.ts). The label always
+     names the category too, so colour is never the only cue. */
+  --cat-music: #1d4ed8;
+  --cat-comedy: #b45309;
+  --cat-theatre: #be123c;
+  --cat-film: #6d28d9;
+  --cat-arts: #0f766e;
+  --cat-sports: #15803d;
+  --cat-family: #a21caf;
+  --cat-community: #7c5e00;
+  --cat-other: #52525b;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -23,6 +34,15 @@
     --badge-bg: #14391f;
     --badge-text: #b7f0c4;
     --focus: #7aa2ff;
+    --cat-music: #7aa2ff;
+    --cat-comedy: #fbbf24;
+    --cat-theatre: #fb7185;
+    --cat-film: #a78bfa;
+    --cat-arts: #2dd4bf;
+    --cat-sports: #4ade80;
+    --cat-family: #e879f9;
+    --cat-community: #d4a84a;
+    --cat-other: #a1a1aa;
   }
 }
 
@@ -65,6 +85,17 @@ code { background: var(--surface); padding: 0.1rem 0.3rem; border-radius: 4px; }
   cursor: pointer;
 }
 .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+/* The ring is the surface colour so the dot keeps its contrast even on a selected (filled) chip. */
+.dot { display: inline-block; width: 0.7rem; height: 0.7rem; margin-right: 0.4rem; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 2px var(--surface); vertical-align: baseline; }
+.dot[data-dot="music"] { background: var(--cat-music); }
+.dot[data-dot="comedy"] { background: var(--cat-comedy); }
+.dot[data-dot="theatre"] { background: var(--cat-theatre); }
+.dot[data-dot="film"] { background: var(--cat-film); }
+.dot[data-dot="arts"] { background: var(--cat-arts); }
+.dot[data-dot="sports"] { background: var(--cat-sports); }
+.dot[data-dot="family"] { background: var(--cat-family); }
+.dot[data-dot="community"] { background: var(--cat-community); }
+.dot[data-dot="other"] { background: var(--cat-other); }
 .count { opacity: 0.8; font-variant-numeric: tabular-nums; }
 .link-button { border-radius: 8px; color: var(--accent); }
 [hidden] { display: none !important; }

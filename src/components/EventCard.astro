@@ -19,7 +19,7 @@ const others = event.sources.filter((s) => s.url && s.url !== event.url && s.nam
   <div class="event-body">
     <p class="event-meta">
       <time datetime={event.start}>{event.has_time ? formatTime(event.start, timeZone) : 'Hora por confirmar'}</time>
-      <span class="cat">{categoryLabel(event.category)}</span>
+      <span class="cat"><span class="dot" data-dot={event.category} aria-hidden="true"></span>{categoryLabel(event.category)}</span>
       {event.is_free === true && <span class="badge">Gratis</span>}
     </p>
     <h3 class="event-title">{event.title}</h3>

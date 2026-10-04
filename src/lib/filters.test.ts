@@ -110,25 +110,25 @@ describe('categories', () => {
     expect(visibleIds(events, { day: 'hoy', categories: new Set(['family'] as const) }, WED_NOON, TZ).size).toBe(0); // empty state
   });
   it('chip counts follow the day filter, not the other chips', () => {
-    expect(categoryCounts(events, 'todos', WED_NOON, TZ)).toEqual({ music: 2, arts: 1, sports: 0, family: 1, community: 0, other: 1 });
-    expect(categoryCounts(events, 'hoy', WED_NOON, TZ)).toEqual({ music: 1, arts: 1, sports: 0, family: 0, community: 0, other: 0 });
+    expect(categoryCounts(events, 'todos', WED_NOON, TZ)).toEqual({ music: 2, comedy: 0, theatre: 0, film: 0, arts: 1, sports: 0, family: 1, community: 0, other: 1 });
+    expect(categoryCounts(events, 'hoy', WED_NOON, TZ)).toEqual({ music: 1, comedy: 0, theatre: 0, film: 0, arts: 1, sports: 0, family: 0, community: 0, other: 0 });
     expect(categoryCounts(events, '7dias', WED_NOON, TZ).music).toBe(2);
   });
 });
 
 describe('chip visibility', () => {
-  const counts = { music: 3, arts: 0, sports: 0, family: 1, community: 0, other: 0 } as const;
+  const counts = { music: 3, comedy: 0, theatre: 0, film: 0, arts: 0, sports: 0, family: 1, community: 0, other: 0 } as const;
   it('hides categories with no events', () => {
     expect([...shownCategories({ ...counts }, new Set())]).toEqual(['music', 'family']);
   });
   it('keeps order and shows everything that has events', () => {
-    expect([...shownCategories({ music: 1, arts: 1, sports: 1, family: 1, community: 1, other: 1 }, new Set())]).toEqual(['music', 'arts', 'sports', 'family', 'community', 'other']);
+    expect([...shownCategories({ music: 1, comedy: 0, theatre: 0, film: 0, arts: 1, sports: 1, family: 1, community: 1, other: 1 }, new Set())]).toEqual(['music', 'arts', 'sports', 'family', 'community', 'other']);
   });
   it('keeps a selected chip visible even at count 0', () => {
     expect([...shownCategories({ ...counts }, new Set(['sports'] as const))]).toEqual(['music', 'sports', 'family']);
   });
   it('shows nothing when there are no events and nothing is selected', () => {
-    expect(shownCategories({ music: 0, arts: 0, sports: 0, family: 0, community: 0, other: 0 }, new Set()).size).toBe(0);
+    expect(shownCategories({ music: 0, comedy: 0, theatre: 0, film: 0, arts: 0, sports: 0, family: 0, community: 0, other: 0 }, new Set()).size).toBe(0);
   });
   it('follows the day filter (counts are recomputed per day)', () => {
     const events: Filterable[] = [
@@ -184,7 +184,7 @@ describe('finished events', () => {
     ] as (Filterable & Timed)[];
     const live = liveEvents(items, NOW, TZ);
     expect(live.map((e) => e.id)).toEqual(['running', 'later', 'tomorrow']);
-    expect(categoryCounts(live, 'hoy', NOW, TZ)).toEqual({ music: 1, arts: 1, sports: 0, family: 0, community: 0, other: 0 });
+    expect(categoryCounts(live, 'hoy', NOW, TZ)).toEqual({ music: 1, comedy: 0, theatre: 0, film: 0, arts: 1, sports: 0, family: 0, community: 0, other: 0 });
     expect([...visibleIds(live, { day: 'todos', categories: new Set(['music'] as const) }, NOW, TZ)]).toEqual(['running']);
     expect(liveEvents(items, new Date('2026-10-12T12:00:00-06:00'), TZ)).toEqual([]); // everything over
   });

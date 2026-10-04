@@ -1,4 +1,4 @@
-# Data contract (`schema_version` 1)
+# Data contract (`schema_version` 2)
 
 The site reads the JSON files in `src/data/`. They are produced by the crawler's `export-site` command; nothing else
 crosses between the two repos. This page is the interface: the crawler promises these files, the site relies on them.
@@ -11,7 +11,7 @@ src/data/
 
 ## Versioning
 
-`meta.json` carries an integer `schema_version`. This site supports **exactly one** version (currently `1`) and the build
+`meta.json` carries an integer `schema_version`. This site supports **exactly one** version (currently `2`) and the build
 **fails with a clear message** when it is missing, not an integer, or different.
 
 - Adding an **optional** field, or a new `category` value the site can fall back on, keeps the version. Consumers must
@@ -23,7 +23,7 @@ src/data/
 
 | Field | Type | Null? | Meaning |
 |---|---|---|---|
-| `schema_version` | integer | no | `1` |
+| `schema_version` | integer | no | `2` |
 | `generated_at` | string | no | When the files were written, ISO 8601 in **UTC** with an explicit offset (`2026-10-04T16:00:29+00:00`). "Finished" was judged against this moment. |
 | `cities` | object | no | Keys are city slugs; every `<city>.json` must have an entry. |
 | `cities.<slug>.slug` | string | no | Same as the key; also the URL segment (`/<slug>/`). |
@@ -49,7 +49,7 @@ Both arrays are always present and may be empty. UTF-8, no BOM.
 | `end` | string \| null | yes | Same format. `null` when the source gives no end time. |
 | `has_time` | boolean | no | `false` when the source only gives a **date**; the time part of `start` is then meaningless. |
 | `venue` | string \| null | yes | Venue as the source writes it (the site cleans it for display). `null` when unknown; never an empty string. |
-| `category` | string | no | One of `music`, `arts`, `sports`, `family`, `community`, `other`. |
+| `category` | string | no | One of `music`, `comedy`, `theatre`, `film`, `arts`, `sports`, `family`, `community`, `other` (see "Categories"). |
 | `is_free` | boolean \| null | yes | `true`/`false` only when a source says so (a price of 0 or "entrada libre" / a price above 0). **`null` means unknown, never "free".** |
 | `image_url` | string \| null | yes | Absolute URL on the source's own server (hotlinked, may disappear). `null` when there is none. |
 | `url` | string \| null | yes | Absolute URL of the **original page** of the winning source. `null` only if no contributing source has one. |
@@ -85,6 +85,24 @@ There is deliberately no `has_time`, `is_free` or `source` here.
   have all started is not exported.
 - Only numeric offsets are used (no `Z`), and there are no durations or other units: the contract has no prices, currencies,
   distances or coordinates.
+
+## Categories
+
+| Value | Site label | Covers |
+|---|---|---|
+| `music` | Música | Concerts and music festivals. |
+| `comedy` | Comedia | Stand-up, comedy shows, podcast tapings. |
+| `theatre` | Teatro y musicales | Plays (comedic ones included), musicals, monologues. |
+| `film` | Cine | Screenings (the Cineteca) and film segments of other sources. |
+| `arts` | Arte | Everything else cultural: exhibitions, dance, classical, shows that fit nowhere finer. |
+| `sports` | Deportes | |
+| `family` | Familia | |
+| `community` | Comunidad | |
+| `other` | Otros | Anything else. |
+
+The exporter decides the category; the site never re-classifies. A **category value this site does not know** (for
+example one a newer exporter added without bumping the version) is shown as `other` / "Otros" and never fails the build.
+Version 2 added `comedy`, `theatre` and `film`; before it, those events were `arts` (and some `music` or `other`).
 
 ## What the exporter has already decided
 

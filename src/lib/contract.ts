@@ -1,7 +1,7 @@
 import type { Meta } from './types';
 
 /** The version of the data files (src/data) this site understands. See docs/data-contract.md. */
-export const SUPPORTED_SCHEMA_VERSION = 1;
+export const SUPPORTED_SCHEMA_VERSION = 2;
 
 export class DataContractError extends Error {
   constructor(message: string) {

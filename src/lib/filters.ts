@@ -9,14 +9,21 @@ export const DAY_FILTERS: { id: DayFilter; label: string }[] = [
   { id: 'todos', label: 'Todos' },
 ];
 
+/** In chip order. */
 export const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'music', label: 'Música' },
+  { id: 'comedy', label: 'Comedia' },
+  { id: 'theatre', label: 'Teatro y musicales' },
+  { id: 'film', label: 'Cine' },
   { id: 'arts', label: 'Arte' },
   { id: 'sports', label: 'Deportes' },
   { id: 'family', label: 'Familia' },
   { id: 'community', label: 'Comunidad' },
   { id: 'other', label: 'Otros' },
 ];
+
+/** A category value this site knows; anything else (e.g. one added by a newer exporter) is `other`. */
+export const normalizeCategory = (value: unknown): Category => CATEGORIES.find((c) => c.id === value)?.id ?? 'other';
 
 export const categoryLabel = (id: string): string => CATEGORIES.find((c) => c.id === id)?.label ?? 'Otros';
 
@@ -76,7 +83,7 @@ export function matchesDay(day: string, filter: DayFilter, now: Date, timeZone: 
 
 /** No category selected means all of them. */
 export function matchesCategory(cat: Category, selected: ReadonlySet<Category>): boolean {
-  return selected.size === 0 || selected.has(cat);
+  return selected.size === 0 || selected.has(normalizeCategory(cat));
 }
 
 export interface FilterState {
@@ -94,8 +101,8 @@ export function visibleIds(events: Filterable[], state: FilterState, now: Date, 
 
 /** Events per category among those that pass the DAY filter (the chip counts), regardless of selected chips. */
 export function categoryCounts(events: Filterable[], day: DayFilter, now: Date, timeZone: string): Record<Category, number> {
-  const counts: Record<Category, number> = { music: 0, arts: 0, sports: 0, family: 0, community: 0, other: 0 };
-  for (const e of events) if (matchesDay(e.day, day, now, timeZone)) counts[e.cat] += 1;
+  const counts = Object.fromEntries(CATEGORIES.map((c) => [c.id, 0])) as Record<Category, number>;
+  for (const e of events) if (matchesDay(e.day, day, now, timeZone)) counts[normalizeCategory(e.cat)] += 1;
   return counts;
 }
 

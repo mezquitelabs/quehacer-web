@@ -1,4 +1,4 @@
-export type Category = 'music' | 'arts' | 'sports' | 'family' | 'community' | 'other';
+export type Category = 'music' | 'comedy' | 'theatre' | 'film' | 'arts' | 'sports' | 'family' | 'community' | 'other';
 
 export interface SourceRef {
   name: string;

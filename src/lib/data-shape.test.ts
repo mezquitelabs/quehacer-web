@@ -9,7 +9,7 @@ const meta = read('meta.json');
 const cityFiles = readdirSync(dir).filter((f) => f.endsWith('.json') && f !== 'meta.json');
 
 const ISO_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
-const CATEGORIES = ['music', 'arts', 'sports', 'family', 'community', 'other'];
+const CATEGORIES = ['music', 'comedy', 'theatre', 'film', 'arts', 'sports', 'family', 'community', 'other'];
 const EVENT_KEYS = ['category', 'end', 'has_time', 'id', 'image_url', 'is_free', 'source', 'sources', 'start', 'title', 'url', 'venue'];
 const ONGOING_KEYS = ['category', 'end', 'id', 'image_url', 'start', 'title', 'url', 'venue'];
 const nullableString = (v: unknown) => v === null || (typeof v === 'string' && v.length > 0);

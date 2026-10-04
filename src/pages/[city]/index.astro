@@ -59,7 +59,7 @@ const names = city.sources.map((s) => s.name).join(', ');
     <div class="filter-group" role="group" aria-label="Categoría">
       {CATEGORIES.map((c) => (
         <button type="button" class="chip" data-cat-btn={c.id} aria-pressed="false" hidden={!initiallyShown.has(c.id)}>
-          {c.label} <span class="count" data-count-for={c.id}>{initialCounts[c.id]}</span>
+          <span class="dot" data-dot={c.id} aria-hidden="true"></span>{c.label} <span class="count" data-count-for={c.id}>{initialCounts[c.id]}</span>
         </button>
       ))}
     </div>
