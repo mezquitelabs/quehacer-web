@@ -1,0 +1,172 @@
+---
+import Layout from '../../components/Layout.astro';
+import EventCard from '../../components/EventCard.astro';
+import EventGroup from '../../components/EventGroup.astro';
+import { loadCities } from '../../lib/data';
+import { CATEGORIES, DAY_FILTERS, categoryCounts, localDateKey, shownCategories } from '../../lib/filters';
+import { formatDayHeading } from '../../lib/format';
+import { groupDay, groupMinFromEnv } from '../../lib/group';
+import { withBase } from '../../lib/url';
+import type { City, EventItem } from '../../lib/types';
+
+export function getStaticPaths() {
+  return loadCities().map((city) => ({ params: { city: city.slug }, props: { city } }));
+}
+
+const { city } = Astro.props as { city: City };
+const tz = city.timezone;
+
+// Group by LOCAL day, soonest first (the data is already sorted, this keeps it so).
+const days = new Map<string, EventItem[]>();
+for (const event of [...city.events].sort((a, b) => a.start.localeCompare(b.start))) {
+  const key = localDateKey(event.start, tz);
+  days.set(key, [...(days.get(key) ?? []), event]);
+}
+const thisYear = new Date().getFullYear();
+// 4 or more events at one venue on one day become a single expandable card; set GROUP_MIN_EVENTS to change it.
+const groupMin = groupMinFromEnv(process.env.GROUP_MIN_EVENTS);
+
+// Embedded once, for the filters: just what they need.
+const filterData = {
+  timeZone: tz,
+  events: city.events.map((e) => ({ id: e.id, day: localDateKey(e.start, tz), cat: e.category, start: e.start, end: e.end, hasTime: e.has_time })),
+};
+const initialCounts = categoryCounts(filterData.events, 'todos', new Date(), tz);
+const initiallyShown = shownCategories(initialCounts, new Set());
+const json = JSON.stringify(filterData).replace(/</g, '\\u003c'); // so the data can never close its own tag early
+const names = city.sources.map((s) => s.name).join(', ');
+---
+<Layout
+  title={`Eventos en ${city.name}: qué hacer | Qué hacer`}
+  description={`${city.events.length} eventos próximos en ${city.name}: música, arte, deportes, familia y comunidad.${names ? ` Fuentes: ${names}.` : ''}`}
+  sources={city.sources}
+  timeZone={tz}
+>
+  <h1>Qué hacer en {city.name}</h1>
+  <p class="lead">
+    <span id="status" aria-live="polite">{city.events.length} eventos próximos</span>
+  </p>
+  <p class="ongoing-link">
+    <a href={withBase(`${city.slug}/en-curso/`)}>Exposiciones, talleres y clubes en curso ({city.ongoing.length})</a>
+  </p>
+
+  <div id="filters" class="filters" hidden>
+    <div class="filter-group" role="group" aria-label="Día">
+      {DAY_FILTERS.map((d) => (
+        <button type="button" class="chip" data-day-btn={d.id} aria-pressed={d.id === 'todos' ? 'true' : 'false'}>{d.label}</button>
+      ))}
+    </div>
+    <div class="filter-group" role="group" aria-label="Categoría">
+      {CATEGORIES.map((c) => (
+        <button type="button" class="chip" data-cat-btn={c.id} aria-pressed="false" hidden={!initiallyShown.has(c.id)}>
+          {c.label} <span class="count" data-count-for={c.id}>{initialCounts[c.id]}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <p id="empty" class="empty" hidden>
+    No hay eventos con estos filtros. <button type="button" class="link-button" id="reset">Quitar filtros</button>
+  </p>
+
+  <p id="none" class="empty" hidden>Ya no quedan eventos próximos en esta lista. Vuelve más tarde.</p>
+
+  <div id="list">
+    {[...days.entries()].map(([key, events]) => (
+      <section class="day" data-day={key}>
+        <h2>{formatDayHeading(key, Number(key.slice(0, 4)) !== thisYear)}</h2>
+        <ul class="events">
+          {groupDay(events, groupMin).map((item) =>
+            item.kind === 'group' ? (
+              <EventGroup venue={item.venue} events={item.events} timeZone={tz} />
+            ) : (
+              <EventCard event={item.event} timeZone={tz} />
+            ),
+          )}
+        </ul>
+      </section>
+    ))}
+  </div>
+  {city.events.length === 0 && <p class="empty">No hay eventos próximos por ahora.</p>}
+
+  <script is:inline type="application/json" id="events-data" set:html={json}></script>
+  <script>
+    import { CATEGORIES, categoryCounts, liveEvents, shownCategories, visibleIds, type DayFilter, type Filterable, type Timed } from '../../lib/filters';
+    import type { Category } from '../../lib/types';
+
+    // Images that fail to load (a source moved or blocked them) simply disappear; the card stays complete.
+    document.addEventListener(
+      'error',
+      (e) => {
+        const el = e.target;
+        if (el instanceof HTMLImageElement) {
+          el.closest('.event')?.classList.add('no-image');
+          el.remove();
+        }
+      },
+      true,
+    );
+
+    const dataEl = document.getElementById('events-data');
+    if (dataEl) {
+      const { timeZone, events } = JSON.parse(dataEl.textContent ?? '{}') as { timeZone: string; events: (Filterable & Timed)[] };
+      const state: { day: DayFilter; categories: Set<Category> } = { day: 'todos', categories: new Set() };
+      const $ = <T extends Element>(sel: string) => Array.from(document.querySelectorAll<T>(sel));
+      const cards = new Map($<HTMLElement>('[data-id]').map((el) => [el.dataset.id!, el]));
+      const groups = $<HTMLElement>('li[data-group]');
+      const sections = $<HTMLElement>('section.day');
+      const emptyEl = document.getElementById('empty')!;
+      const statusEl = document.getElementById('status')!;
+      const noneEl = document.getElementById('none')!;
+
+      const render = () => {
+        const now = new Date();
+        const live = liveEvents(events, now, timeZone); // the page is a snapshot: hide what has already ended
+        const ids = visibleIds(live, state, now, timeZone);
+        for (const [id, el] of cards) el.hidden = !ids.has(id);
+        for (const group of groups) {
+          // a group shows only its visible functions, and the number in its title follows them
+          const n = group.querySelectorAll('[data-id]:not([hidden])').length;
+          group.hidden = n === 0;
+          group.querySelector('[data-group-n]')!.textContent = String(n);
+          group.querySelector('[data-group-label]')!.textContent = n === 1 ? 'función' : 'funciones';
+        }
+        for (const section of sections) section.hidden = !section.querySelector('[data-id]:not([hidden])');
+        const counts = categoryCounts(live, state.day, now, timeZone);
+        for (const { id } of CATEGORIES) {
+          const span = document.querySelector<HTMLElement>(`[data-count-for="${id}"]`);
+          if (span) span.textContent = String(counts[id]);
+        }
+        const shown = shownCategories(counts, state.categories);
+        $<HTMLElement>('[data-cat-btn]').forEach((b) => (b.hidden = !shown.has(b.dataset.catBtn as Category)));
+        $<HTMLElement>('[data-day-btn]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dayBtn === state.day)));
+        $<HTMLElement>('[data-cat-btn]').forEach((b) => b.setAttribute('aria-pressed', String(state.categories.has(b.dataset.catBtn as Category))));
+        noneEl.hidden = live.length > 0 || events.length === 0;
+        emptyEl.hidden = ids.size > 0 || live.length === 0;
+        statusEl.textContent = `${ids.size} ${ids.size === 1 ? 'evento' : 'eventos'}${ids.size === live.length ? ' próximos' : ''}`;
+      };
+
+      $<HTMLElement>('[data-day-btn]').forEach((b) =>
+        b.addEventListener('click', () => {
+          state.day = b.dataset.dayBtn as DayFilter;
+          render();
+        }),
+      );
+      $<HTMLElement>('[data-cat-btn]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const cat = b.dataset.catBtn as Category;
+          state.categories.has(cat) ? state.categories.delete(cat) : state.categories.add(cat);
+          render();
+        }),
+      );
+      document.getElementById('reset')?.addEventListener('click', () => {
+        state.day = 'todos';
+        state.categories.clear();
+        render();
+      });
+
+      document.getElementById('filters')!.hidden = false; // without JS the full list is shown and no dead buttons
+      render();
+    }
+  </script>
+</Layout>

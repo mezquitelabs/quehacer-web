@@ -1,0 +1,37 @@
+---
+import { formatTime } from '../lib/format';
+import type { EventItem } from '../lib/types';
+
+interface Props {
+  venue: string; // already formatted for display
+  events: EventItem[];
+  timeZone: string;
+}
+const { venue, events, timeZone } = Astro.props;
+const n = events.length;
+---
+<li class="event group" data-group>
+  <details>
+    <summary>
+      <span class="group-venue">{venue}</span> · <span data-group-n>{n}</span> <span data-group-label>{n === 1 ? 'función' : 'funciones'}</span>
+    </summary>
+    <ul class="functions">
+      {events.map((event) => {
+        const others = event.sources.filter((s) => s.url && s.url !== event.url && s.name !== event.source);
+        return (
+          <li class="fn" data-id={event.id} data-cat={event.category}>
+            <time datetime={event.start}>{event.has_time ? formatTime(event.start, timeZone) : 'Hora por confirmar'}</time>
+            <span class="fn-main">
+              <span class="fn-title">{event.title}</span>
+              {event.is_free === true && <span class="badge">Gratis</span>}
+              <span class="fn-links">
+                {event.url && <a href={event.url} rel="noopener noreferrer" target="_blank">Ver en {event.source}</a>}
+                {others.map((s) => <a class="also" href={s.url!} rel="noopener noreferrer" target="_blank">También en {s.name}</a>)}
+              </span>
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  </details>
+</li>

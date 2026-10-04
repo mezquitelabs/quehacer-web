@@ -1,0 +1,253 @@
+{
+ "busy_venue_day": [
+  {
+   "id": "demo:event-1:20261004T1200",
+   "title": "Película de ejemplo 1",
+   "start": "2026-10-04T12:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/1.jpg",
+   "url": "https://example.org/events/1",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/1"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-2:20261004T1330",
+   "title": "Película de ejemplo 2",
+   "start": "2026-10-04T13:30:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/2.jpg",
+   "url": "https://example.org/events/2",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/2"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-3:20261004T1415",
+   "title": "Película de ejemplo 3",
+   "start": "2026-10-04T14:15:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/3.jpg",
+   "url": "https://example.org/events/3",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/3"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-4:20261004T1545",
+   "title": "Película de ejemplo 4",
+   "start": "2026-10-04T15:45:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/4.jpg",
+   "url": "https://example.org/events/4",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/4"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-5:20261004T1630",
+   "title": "Película de ejemplo 5",
+   "start": "2026-10-04T16:30:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/5.jpg",
+   "url": "https://example.org/events/5",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/5"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-6:20261004T1800",
+   "title": "Película de ejemplo 6",
+   "start": "2026-10-04T18:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/6.jpg",
+   "url": "https://example.org/events/6",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/6"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-7:20261004T1915",
+   "title": "Película de ejemplo 7",
+   "start": "2026-10-04T19:15:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/7.jpg",
+   "url": "https://example.org/events/7",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/7"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-8:20261004T2000",
+   "title": "Película de ejemplo 8",
+   "start": "2026-10-04T20:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/8.jpg",
+   "url": "https://example.org/events/8",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/8"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-9:20261004T2100",
+   "title": "Película de ejemplo 9",
+   "start": "2026-10-04T21:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/9.jpg",
+   "url": "https://example.org/events/9",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/9"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-10:20261004T2145",
+   "title": "Película de ejemplo 10",
+   "start": "2026-10-04T21:45:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Cinema Demo \"Sala Azul\" - Centro Ejemplo | EJEMPLO",
+   "category": "arts",
+   "is_free": null,
+   "image_url": "https://example.org/img/10.jpg",
+   "url": "https://example.org/events/10",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/10"
+    }
+   ]
+  }
+ ],
+ "other_events_same_day": [
+  {
+   "id": "demo:event-101:20261004T1000",
+   "title": "Mercado de ejemplo",
+   "start": "2026-10-04T10:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Plaza Ejemplo",
+   "category": "community",
+   "is_free": null,
+   "image_url": "https://example.org/img/101.jpg",
+   "url": "https://example.org/events/101",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/101"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-102:20261004T1700",
+   "title": "Concierto de ejemplo",
+   "start": "2026-10-04T17:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Foro Ejemplo",
+   "category": "music",
+   "is_free": null,
+   "image_url": "https://example.org/img/102.jpg",
+   "url": "https://example.org/events/102",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/102"
+    }
+   ]
+  },
+  {
+   "id": "demo:event-103:20261004T2300",
+   "title": "Fiesta de ejemplo",
+   "start": "2026-10-04T23:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Salón Ejemplo",
+   "category": "music",
+   "is_free": null,
+   "image_url": "https://example.org/img/103.jpg",
+   "url": "https://example.org/events/103",
+   "source": "Fuente de ejemplo",
+   "sources": [
+    {
+     "name": "Fuente de ejemplo",
+     "url": "https://example.org/events/103"
+    }
+   ]
+  }
+ ]
+}

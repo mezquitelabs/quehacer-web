@@ -1,0 +1,53 @@
+---
+import '../styles/global.css';
+import { withBase } from '../lib/url';
+import { formatUpdated } from '../lib/format';
+import { meta } from '../lib/data';
+import type { SourceRef } from '../lib/types';
+
+interface Props {
+  title: string;
+  description: string;
+  sources: SourceRef[];
+  timeZone: string;
+}
+const { title, description, sources, timeZone } = Astro.props;
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : null;
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <link rel="icon" type="image/svg+xml" href={withBase('favicon.svg')} />
+  </head>
+  <body>
+    <a class="skip" href="#contenido">Saltar al contenido</a>
+    <header class="site-header">
+      <a class="brand" href={withBase('')}>Qué hacer</a>
+    </header>
+    <main id="contenido">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      {sources.length > 0 && (
+        <p>
+          Datos de:{' '}
+          {sources.map((s, i) => (
+            <>
+              {i > 0 && ', '}
+              {s.url ? <a href={s.url} rel="noopener noreferrer" target="_blank">{s.name}</a> : s.name}
+            </>
+          ))}
+          .
+        </p>
+      )}
+      <p class="notice">Los eventos provienen de fuentes de terceros y cada uno enlaza a su página original. No se reclaman derechos sobre esos datos.</p>
+      <p>Actualizado: <time datetime={meta.generated_at}>{formatUpdated(meta.generated_at, timeZone)}</time> (hora local). Verifica horarios y precios en la página original.</p>
+    </footer>
+  </body>
+</html>

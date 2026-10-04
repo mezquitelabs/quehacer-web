@@ -1,0 +1,59 @@
+# Builds the site and publishes it to GitHub Pages on every push to main.
+# Uses the official Astro action: https://docs.astro.build/en/guides/deploy/github/
+#
+# SITE_URL and BASE_PATH can be overridden with repository VARIABLES (Settings > Secrets and variables > Actions >
+# Variables). Without them the site is published at https://mezquitelabs.github.io/quehacer-web/
+#   custom domain -> SITE_URL=https://example.com   BASE_PATH=/
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  SITE_URL: ${{ vars.SITE_URL || 'https://mezquitelabs.github.io' }}
+  BASE_PATH: ${{ vars.BASE_PATH || '/quehacer-web' }}
+  GROUP_MIN_EVENTS: ${{ vars.GROUP_MIN_EVENTS || '4' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install, build and upload the site
+        uses: withastro/action@v3
+        with:
+          node-version: 20
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

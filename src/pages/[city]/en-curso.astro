@@ -1,0 +1,46 @@
+---
+import Layout from '../../components/Layout.astro';
+import { loadCities } from '../../lib/data';
+import { categoryLabel } from '../../lib/filters';
+import { formatRange, formatVenue, hostOf } from '../../lib/format';
+import { withBase } from '../../lib/url';
+import type { City } from '../../lib/types';
+
+export function getStaticPaths() {
+  return loadCities().map((city) => ({ params: { city: city.slug }, props: { city } }));
+}
+
+const { city } = Astro.props as { city: City };
+const tz = city.timezone;
+// Ending soonest first; open-ended entries last.
+const items = [...city.ongoing].sort((a, b) => (a.end ?? '9999').localeCompare(b.end ?? '9999') || a.title.localeCompare(b.title, 'es'));
+---
+<Layout
+  title={`En curso en ${city.name}: exposiciones, talleres y clubes | Qué hacer`}
+  description={`${items.length} exposiciones, talleres, clubes y cursos en curso en ${city.name}, con sus fechas.`}
+  sources={city.sources}
+  timeZone={tz}
+>
+  <p class="back"><a href={withBase(`${city.slug}/`)}>← Eventos en {city.name}</a></p>
+  <h1>En curso en {city.name}</h1>
+  <p class="lead">Exposiciones, talleres, clubes y cursos que duran varios días.</p>
+  {items.length === 0 && <p class="empty">No hay entradas en curso por ahora.</p>}
+  <ul class="events ongoing">
+    {items.map((o) => (
+      <li class="event">
+        {o.image_url && <img class="event-img" src={o.image_url} alt={`Imagen: ${o.title}`} loading="lazy" decoding="async" referrerpolicy="no-referrer" />}
+        <div class="event-body">
+          <p class="event-meta">
+            <span class="range">{formatRange(o.start, o.end, tz)}</span>
+            <span class="cat">{categoryLabel(o.category)}</span>
+          </p>
+          <h2 class="event-title">{o.title}</h2>
+          {o.venue && <p class="event-venue">{formatVenue(o.venue)}</p>}
+          {o.url && (
+            <p class="event-links"><a href={o.url} rel="noopener noreferrer" target="_blank">Ver en {hostOf(o.url)}</a></p>
+          )}
+        </div>
+      </li>
+    ))}
+  </ul>
+</Layout>

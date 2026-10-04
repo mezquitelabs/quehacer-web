@@ -1,0 +1,28 @@
+---
+import Layout from '../components/Layout.astro';
+import { allSources, loadCities } from '../lib/data';
+import { withBase } from '../lib/url';
+
+const cities = loadCities();
+const tz = cities[0]?.timezone ?? 'America/Monterrey';
+---
+<Layout
+  title="Qué hacer: eventos en tu ciudad"
+  description="Conciertos, teatro, cine, exposiciones y más, reunidos de varias fuentes en un solo lugar."
+  sources={allSources(cities)}
+  timeZone={tz}
+>
+  <h1>Qué hacer</h1>
+  <p class="lead">Eventos de varias fuentes, en un solo lugar. Elige tu ciudad:</p>
+  {cities.length === 0 && <p class="empty">Todavía no hay datos. Genera los archivos con el comando <code>export-site</code> del exportador de datos.</p>}
+  <ul class="city-list">
+    {cities.map((c) => (
+      <li>
+        <a class="city-link" href={withBase(`${c.slug}/`)}>
+          <span class="city-name">{c.name}</span>
+          <span class="city-count">{c.events.length} eventos próximos</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</Layout>
