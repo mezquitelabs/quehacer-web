@@ -69,17 +69,23 @@ What the page shows and hides:
 ## `site` and `base` (GitHub Pages or a custom domain)
 
 Both can be set from environment variables (read in `astro.config.mjs`; in CI, from repository variables); every internal
-link goes through `withBase()`. **Defaults:** `SITE_URL=https://mezquitelabs.github.io` and `BASE_PATH=/quehacer-web`,
-which is the GitHub Pages project site `https://mezquitelabs.github.io/quehacer-web/`. An empty variable counts as unset.
+link goes through `withBase()`. An empty variable counts as unset.
+
+**Two sets of defaults, on purpose.** The code defaults (`src/lib/site-config.ts`: `SITE_URL=https://mezquitelabs.github.io`,
+`BASE_PATH=/quehacer-web`) are for local work, so `npm run dev` serves at `http://localhost:4321/quehacer-web/`. The deploy
+workflow overrides them for production: `SITE_URL=https://quehacer.mx` and `BASE_PATH=/`, because the site lives on the
+custom domain at the root.
 
 | Where it is served | `SITE_URL` | `BASE_PATH` |
 |---|---|---|
-| `https://mezquitelabs.github.io/quehacer-web/` | (default) | (default) |
-| custom domain | `https://example.com` | `/` |
+| `https://quehacer.mx/` (production, set by the workflow) | `https://quehacer.mx` | `/` |
+| `http://localhost:4321/quehacer-web/` (local default) | (default) | (default) |
+| `https://mezquitelabs.github.io/quehacer-web/` (project site) | (default) | (default) |
 
 ```bash
-npm run build                                                  # the defaults above
-SITE_URL=https://example.com BASE_PATH=/ npm run build         # custom domain, served at the root
+npm run build                                                          # the local defaults (project-site paths)
+SITE_URL=https://quehacer.mx BASE_PATH=/ npm run build                 # what production builds
+SITE_URL=https://example.com BASE_PATH=/ npm run build                 # any other custom domain
 ```
 
 `GROUP_MIN_EVENTS` works the same way (`GROUP_MIN_EVENTS=6 npm run build`).
@@ -97,12 +103,13 @@ Manual steps:
 2. **Visibility.** GitHub Pages on the free plan needs a **public** repository (a private one needs a paid plan). The site itself
    is public either way. The repo contains no exporter code or secrets; its data files are what the site shows.
 3. **Settings > Pages > Build and deployment > Source: GitHub Actions.**
-4. **Project site** (`mezquitelabs.github.io/quehacer-web/`): nothing else; with no variables the workflow uses the defaults
-   `https://mezquitelabs.github.io` and `/quehacer-web`.
-5. **Custom domain:** create the DNS record (a `CNAME` from `www` (or a subdomain) to `mezquitelabs.github.io`; for an apex
-   domain use GitHub's `A` records), set the domain in Settings > Pages, tick **Enforce HTTPS** once the certificate is
-   ready, and set repository **variables** (Settings > Secrets and variables > Actions > Variables)
-   `SITE_URL=https://your-domain` and `BASE_PATH=/`. No `CNAME` file is needed with Actions deployments.
+4. **Production is the custom domain `https://quehacer.mx/`.** The workflow's defaults are `SITE_URL=https://quehacer.mx` and
+   `BASE_PATH=/`, so no repository variables are needed. `public/CNAME` (`quehacer.mx`) keeps the domain set on every deploy.
+5. **Custom domain setup (one time):** in DNS, point the apex at GitHub's four `A` records (`185.199.108.153`, `.109.153`,
+   `.110.153`, `.111.153`) and `www` with a `CNAME` to `mezquitelabs.github.io`; with Cloudflare keep both records
+   **DNS only** (grey cloud) so GitHub can issue the certificate. Set the domain in Settings > Pages and tick
+   **Enforce HTTPS** once the certificate is ready. To publish somewhere else (another domain, or the project site again),
+   set the repository **variables** (Settings > Secrets and variables > Actions > Variables) `SITE_URL` and `BASE_PATH`.
 6. Push `main`. The first run asks you to approve the `github-pages` environment if it is protected.
 
 The workflow installs with `npm ci`, so commit `package-lock.json` (it is).
