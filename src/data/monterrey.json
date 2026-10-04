@@ -1,44 +1,6 @@
 {
  "events": [
   {
-   "id": "conarte-cineteca:rumbo-al-ariel-jikuri-viaje-al-pais-de-los-tarahumaras:20261004T1400",
-   "title": "Jikuri – Viaje al país de los Tarahumaras",
-   "start": "2026-10-04T14:00:00-06:00",
-   "end": null,
-   "has_time": true,
-   "venue": "Cineteca \"Alejandra Rangel Hinojosa\" - Centro de las Artes | CONARTE",
-   "category": "film",
-   "is_free": null,
-   "image_url": "https://conarte.org.mx/wp-content/uploads/2025/09/Jikuri-Imagen-e1757630844843-700x360.jpg",
-   "url": "https://conarte.org.mx/cineteca/rumbo-al-ariel-jikuri-viaje-al-pais-de-los-tarahumaras/",
-   "source": "Cineteca Nuevo León",
-   "sources": [
-    {
-     "name": "Cineteca Nuevo León",
-     "url": "https://conarte.org.mx/cineteca/rumbo-al-ariel-jikuri-viaje-al-pais-de-los-tarahumaras/"
-    }
-   ]
-  },
-  {
-   "id": "conarte-cineteca:la-desaparicion-de-josef-mengele:20261004T1415",
-   "title": "La desaparición de Josef Mengele",
-   "start": "2026-10-04T14:15:00-06:00",
-   "end": null,
-   "has_time": true,
-   "venue": "Cineteca \"Alejandra Rangel Hinojosa\" - Centro de las Artes | CONARTE",
-   "category": "film",
-   "is_free": null,
-   "image_url": "https://conarte.org.mx/wp-content/uploads/2026/09/La-Desaparicion-de-Josef-Mengele-Imagen-scaled-e1790206492684-700x360.jpg",
-   "url": "https://conarte.org.mx/cineteca/la-desaparicion-de-josef-mengele/",
-   "source": "Cineteca Nuevo León",
-   "sources": [
-    {
-     "name": "Cineteca Nuevo León",
-     "url": "https://conarte.org.mx/cineteca/la-desaparicion-de-josef-mengele/"
-    }
-   ]
-  },
-  {
    "id": "conarte-cineteca:dogtooth-canino:20261004T1600",
    "title": "Dogtooth: Canino",
    "start": "2026-10-04T16:00:00-06:00",
