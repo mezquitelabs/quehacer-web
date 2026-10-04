@@ -2,7 +2,7 @@
 import Layout from '../../components/Layout.astro';
 import { loadCities } from '../../lib/data';
 import { categoryLabel } from '../../lib/filters';
-import { formatRange, formatVenue, hostOf } from '../../lib/format';
+import { formatRange, shortVenue, hostOf } from '../../lib/format';
 import { withBase } from '../../lib/url';
 import type { City } from '../../lib/types';
 
@@ -20,6 +20,7 @@ const items = [...city.ongoing].sort((a, b) => (a.end ?? '9999').localeCompare(b
   description={`${items.length} exposiciones, talleres, clubes y cursos en curso en ${city.name}, con sus fechas.`}
   sources={city.sources}
   timeZone={tz}
+  citySlug={city.slug}
 >
   <p class="back"><a href={withBase(`${city.slug}/`)}>← Eventos en {city.name}</a></p>
   <h1>En curso en {city.name}</h1>
@@ -27,19 +28,23 @@ const items = [...city.ongoing].sort((a, b) => (a.end ?? '9999').localeCompare(b
   {items.length === 0 && <p class="empty">No hay entradas en curso por ahora.</p>}
   <ul class="events ongoing">
     {items.map((o) => (
-      <li class="event">
-        {o.image_url && <img class="event-img" src={o.image_url} alt={`Imagen: ${o.title}`} loading="lazy" decoding="async" referrerpolicy="no-referrer" />}
-        <div class="event-body">
+      <li class="event" data-cat={o.category}>
+        <div class="ev-text">
+          <p class="range">{formatRange(o.start, o.end, tz)}</p>
+          <h2 class="event-title">
+            {o.url ? (
+              <a class="ev-link" href={o.url} rel="noopener noreferrer" target="_blank">{o.title}<span class="sr-only"> (en {hostOf(o.url)}, se abre en otra pestaña)</span></a>
+            ) : (
+              o.title
+            )}
+          </h2>
+          {o.venue && <p class="event-venue">{shortVenue(o.venue)}</p>}
           <p class="event-meta">
-            <span class="range">{formatRange(o.start, o.end, tz)}</span>
             <span class="cat"><span class="dot" data-dot={o.category} aria-hidden="true"></span>{categoryLabel(o.category)}</span>
+            {o.url && <span class="src">{hostOf(o.url)}</span>}
           </p>
-          <h2 class="event-title">{o.title}</h2>
-          {o.venue && <p class="event-venue">{formatVenue(o.venue)}</p>}
-          {o.url && (
-            <p class="event-links"><a href={o.url} rel="noopener noreferrer" target="_blank">Ver en {hostOf(o.url)}</a></p>
-          )}
         </div>
+        {o.image_url && <img class="event-img" src={o.image_url} alt="" width="72" height="72" loading="lazy" decoding="async" referrerpolicy="no-referrer" />}
       </li>
     ))}
   </ul>

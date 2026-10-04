@@ -2,7 +2,7 @@
 import '../styles/global.css';
 import { withBase } from '../lib/url';
 import { formatUpdated } from '../lib/format';
-import { meta } from '../lib/data';
+import { loadCities, meta } from '../lib/data';
 import type { SourceRef } from '../lib/types';
 
 interface Props {
@@ -10,9 +10,13 @@ interface Props {
   description: string;
   sources: SourceRef[];
   timeZone: string;
+  citySlug?: string; // the city being viewed, for the switcher
+  canonicalPath?: string; // overrides the canonical link (a redirect page points at its target)
 }
-const { title, description, sources, timeZone } = Astro.props;
-const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : null;
+const { title, description, sources, timeZone, citySlug, canonicalPath } = Astro.props;
+const cities = loadCities();
+const current = cities.find((c) => c.slug === citySlug);
+const canonical = Astro.site ? new URL(canonicalPath ?? Astro.url.pathname, Astro.site).href : null;
 ---
 <!doctype html>
 <html lang="es">
@@ -23,12 +27,24 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : nu
     <title>{title}</title>
     <meta name="description" content={description} />
     {canonical && <link rel="canonical" href={canonical} />}
+    <slot name="head" />
     <link rel="icon" type="image/svg+xml" href={withBase('favicon.svg')} />
   </head>
   <body>
     <a class="skip" href="#contenido">Saltar al contenido</a>
     <header class="site-header">
       <a class="brand" href={withBase('')}>Qué hacer</a>
+      {current && cities.length > 1 && (
+        <details class="city-switch">
+          <summary><span class="sr-only">Ciudad: </span>{current.name}</summary>
+          <ul>
+            {cities.map((c) => (
+              <li><a href={withBase(`${c.slug}/`)} aria-current={c.slug === current.slug ? 'page' : undefined}>{c.name}</a></li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {current && cities.length === 1 && <span class="city-current"><span class="sr-only">Ciudad: </span>{current.name}</span>}
     </header>
     <main id="contenido">
       <slot />
@@ -49,5 +65,19 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : nu
       <p class="notice">Los eventos provienen de fuentes de terceros y cada uno enlaza a su página original. No se reclaman derechos sobre esos datos.</p>
       <p>Actualizado: <time datetime={meta.generated_at}>{formatUpdated(meta.generated_at, timeZone)}</time> (hora local). Verifica horarios y precios en la página original.</p>
     </footer>
+  <script>
+    // Images that fail to load (a source moved or blocked them) simply disappear; the row stays complete.
+    document.addEventListener(
+      'error',
+      (e) => {
+        const el = e.target;
+        if (el instanceof HTMLImageElement) {
+          el.closest('.event')?.classList.add('no-image');
+          el.remove();
+        }
+      },
+      true,
+    );
+  </script>
   </body>
 </html>
