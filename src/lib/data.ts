@@ -1,4 +1,6 @@
 import { SUPPORTED_SCHEMA_VERSION, assertSupportedSchema } from './contract';
+import allowedHostsFile from './allowed-hosts.json';
+import { allowedHosts, assertSafeCityFile, assertSafeMeta } from './data-guard';
 import { normalizeCategory } from './filters';
 import type { City, CityFile, Meta, SourceRef } from './types';
 
@@ -9,6 +11,9 @@ const metaEntry = Object.entries(files).find(([path]) => path.endsWith('/meta.js
 // A missing meta.json is fine only while there are no city files at all (a fresh clone); otherwise the version must match.
 const hasCityFiles = Object.keys(files).some((path) => !path.endsWith('/meta.json'));
 if (metaEntry || hasCityFiles) assertSupportedSchema(metaEntry?.[1]);
+const hosts = allowedHosts(allowedHostsFile);
+// Data comes from another repo: validate links, coordinates and sizes before anything is built from it.
+if (metaEntry) assertSafeMeta(metaEntry[1], hosts);
 export const meta: Meta = (metaEntry?.[1] as Meta | undefined) ?? { schema_version: SUPPORTED_SCHEMA_VERSION, generated_at: new Date(0).toISOString(), cities: {} };
 
 export function loadCities(): City[] {
@@ -18,6 +23,7 @@ export function loadCities(): City[] {
     if (slug === 'meta') continue;
     const info = meta.cities[slug];
     if (!info) throw new Error(`src/data/${slug}.json has no entry in src/data/meta.json (city name and timezone). Re-run the data exporter's export-site command.`);
+    assertSafeCityFile(slug, content, hosts);
     const data = content as CityFile;
     // An unknown category (a newer exporter than this site) is shown as "Otros", never a build error.
     const events = (data.events ?? []).map((e) => ({ ...e, category: normalizeCategory(e.category) }));

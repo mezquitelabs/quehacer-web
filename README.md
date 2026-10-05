@@ -2,7 +2,7 @@
 
 Static site for a city-events data set (Astro, TypeScript, plain CSS). It **only reads JSON files**
 (`src/data/<city>.json` and `src/data/meta.json`, produced by a separate data exporter and published on this repo's
-`data` branch, see "Where the data comes from") and has no access to anything else, so the exporter's code, database and credentials never live in this repo.
+`quehacer-data` repo, see "Where the data comes from") and has no access to anything else, so the exporter's code, database and credentials never live in this repo.
 
 ## Data notice
 
@@ -102,14 +102,26 @@ SITE_URL=https://example.com BASE_PATH=/ npm run build                 # any oth
 
 ## Deploying to GitHub Pages
 
-`.github/workflows/deploy.yml` checks out `main` and the `data` branch, runs the tests, builds with the official Astro action
-and publishes on **every push to `main` or `data`** (and on demand: Actions > Deploy > Run workflow). It needs **no
-secrets**; deploys never overlap (one `pages` concurrency group, queued, never cancelled). It fails with a clear message if
-`data` is missing or empty. Nothing here creates the remote repo or pushes anything. Manual steps:
+`.github/workflows/deploy.yml` checks out `main` and the data repo's `data` branch, runs the tests, builds with the official Astro
+action and publishes. **How a deploy is triggered:**
+
+| Trigger | When |
+|---|---|
+| push to `main` | a code change |
+| `schedule` (cron `17 * * * *`) | **every hour**, at minute 17 UTC, which is how new data gets picked up |
+| `workflow_dispatch` | on demand: Actions > Deploy > Run workflow (about 2 to 5 minutes) |
+
+A publish by the crawler pushes to the **other** repo (`quehacer-data`) and cannot trigger anything here, so after a publish the
+site updates **within about an hour** (next scheduled run), or immediately if you click "Run workflow". Caveat: **GitHub
+disables scheduled workflows after 60 days without repository activity** (commits, not workflow runs). If the hourly deploys stop,
+check Actions for the "disabled" banner and re-enable it (or push any commit to `main`); the site keeps serving its last deploy meanwhile.
+
+It needs **no secrets**; deploys never overlap (one `pages` concurrency group, queued, never cancelled). It fails with a clear
+message if the data branch is missing or empty. Nothing here creates the remote repo or pushes anything. Manual steps:
 
 1. **The repo** is `mezquitelabs/quehacer-web` on GitHub; add it as `origin` (through an SSH host alias that uses that account's key).
 2. **Visibility.** GitHub Pages on the free plan needs a **public** repository (a private one needs a paid plan). The site itself
-   is public either way. The repo contains no exporter code or secrets; the `data` branch holds what the site shows.
+   is public either way. The repo contains no exporter code or secrets; the data repo holds what the site shows.
 3. **Settings > Pages > Build and deployment > Source: GitHub Actions.**
 4. **Production is the custom domain `https://quehacer.mx/`.** The workflow's defaults are `SITE_URL=https://quehacer.mx` and
    `BASE_PATH=/`, so no repository variables are needed. `public/CNAME` (`quehacer.mx`) keeps the domain set on every deploy.
@@ -124,27 +136,40 @@ The workflow installs with `npm ci`, so commit `package-lock.json` (it is).
 
 ## Where the data comes from
 
-Code and data live on **different branches** of this repository:
+Code and data live in **two public repositories**:
 
-| Branch | Holds | Written by |
+| Repo | Holds | Written by |
 |---|---|---|
-| `main` | the site's code, tests and workflow | normal pushes by hand |
-| `data` | `src/data/meta.json` and `src/data/<city>.json`, nothing else | the crawler, once a day (`quehacer daily`, which ends with `quehacer publish-site`) |
+| `mezquitelabs/quehacer-web` (this one) | the site's code, tests and workflow, on `main` | normal pushes by hand |
+| `mezquitelabs/quehacer-data`, branch `data` | `src/data/meta.json`, `src/data/<city>.json` and a README | the crawler, once a day (`quehacer daily`, which ends with `quehacer publish-site`) |
 
 `data` is **replaced with a single orphan commit on every publish** (force-push with a lease, author `quehacer-bot`, message
 `Update event data <UTC timestamp>`), so the public history never accumulates snapshots of third-party data. Never commit to
-`data` by hand and never merge it into `main`.
+it by hand. The crawler's deploy key can write `quehacer-data` only, so a bug or leak on the crawler side cannot touch this repo's code.
 
 ```
-crawler: sync -> publish-site -> force-push `data` (deploy key)
-                                      |  push to `data` triggers
-GitHub Actions: checkout main + checkout data -> copy data into src/data -> npm test -> build -> Pages
+crawler: sync -> publish-site -> force-push quehacer-data/data (deploy key)
+                                           |   (no trigger across repos)
+GitHub Actions in quehacer-web: hourly schedule / push to main / manual
+   -> checkout main + checkout quehacer-data@data -> copy into src/data -> safety checks -> npm test -> build -> Pages
 ```
 
-The push of `data` triggers the workflow, so every publish rebuilds the site with a fresh "Actualizado". A push to `main`
-(code change) rebuilds it with the current `data`.
+### Safety checks on incoming data
 
-### If the `data` branch is deleted (or damaged)
+The data comes from outside this repo, so the build validates it first (`src/lib/data-guard.ts`, run when `src/data` is loaded)
+and **fails with a message listing the problems** if:
+
+- any event, ongoing entry or source link (`url`, `image_url`, `sources[].url`, meta source urls) is not an absolute **https** URL,
+  carries credentials, or has a host that is not in the allowlist;
+- a `lat`/`lon`/`latitude`/`longitude`/`lng` field is present and is not a finite number in range (the contract has none today);
+- a string is over its limit (title 400, venue 400, id 300, urls 2048, anything else 1000) or a list has over 20000 entries.
+
+**Allowed hosts.** `src/lib/allowed-hosts.json` lists the exact hostnames (no wildcards, no subdomain matching). Today:
+`conarte.org.mx`, `cultura.uanl.mx`, `s1.ticketm.net`, `ticketmaster.com.mx`, `www.nl.gob.mx`, `www.ticketmaster.com.mx`. When a
+new source (or a new image CDN) appears, the build fails naming the host; if it is legitimate, add it to that file, commit and push
+`main` (`npm test` covers the check with synthetic bad data in `src/lib/data-guard.test.ts`).
+
+### If the data repo or its `data` branch is deleted (or damaged)
 
 The workflow then fails with "Missing data branch" (or "Empty data branch") and the live site keeps its last good deploy. To
 recover, run from the crawler checkout:
@@ -154,14 +179,17 @@ cd ~/quehacer
 .venv/bin/python -m quehacer.cli publish-site        # recreates the branch from the crawler's database
 ```
 
-It needs `QUEHACER_DATA_REMOTE` in the crawler's `.env` (deploy-key alias URL). The push creates `data` from nothing (the lease
-expects it absent) and triggers a deploy. If an export looks too small compared with the last publish, add `--force-small`
-once. The crawler's database is the source of truth, so nothing is lost.
+If the repo itself is gone, create an empty public `mezquitelabs/quehacer-data` on GitHub and add the crawler's deploy key to it
+(Settings > Deploy keys > Allow write access) first. The push creates `data` from nothing (the lease expects it absent). If an
+export looks too small compared with the last publish, add `--force-small` once. The crawler's database is the source of truth,
+so nothing is lost. Then run the deploy workflow ("Run workflow") or wait for the hourly one.
 
 ## Layout
 
 ```
-src/data/            <city>.json + meta.json (git-ignored; from the `data` branch or the crawler's export-site)
+src/data/            <city>.json + meta.json (git-ignored; from the data repo or the crawler's export-site)
+src/lib/allowed-hosts.json  hosts the data's links may point to
+src/lib/data-guard.ts       build-time safety checks on incoming data
 tests/fixtures/data/ tiny synthetic sample that keeps the contract test running without real data
 src/lib/filters.ts   pure filter logic (+ filters.test.ts)
 src/lib/format.ts    Spanish date/time formatting in the city's timezone

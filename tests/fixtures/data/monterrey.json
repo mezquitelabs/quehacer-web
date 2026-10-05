@@ -10,12 +10,12 @@
    "category": "film",
    "is_free": null,
    "image_url": null,
-   "url": "https://example.com/evento-1",
+   "url": "https://conarte.org.mx/evento-1",
    "source": "Fuente de muestra",
    "sources": [
     {
      "name": "Fuente de muestra",
-     "url": "https://example.com/evento-1"
+     "url": "https://conarte.org.mx/evento-1"
     }
    ]
   },
@@ -29,12 +29,12 @@
    "category": "arts",
    "is_free": false,
    "image_url": null,
-   "url": "https://example.com/evento-2",
+   "url": "https://conarte.org.mx/evento-2",
    "source": "Fuente de muestra",
    "sources": [
     {
      "name": "Fuente de muestra",
-     "url": "https://example.com/evento-2"
+     "url": "https://conarte.org.mx/evento-2"
     }
    ]
   }
@@ -47,7 +47,7 @@
    "end": "2026-12-31T23:59:00-06:00",
    "venue": null,
    "category": "arts",
-   "url": "https://example.com/expo",
+   "url": "https://conarte.org.mx/expo",
    "image_url": null
   }
  ]

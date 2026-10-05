@@ -1,6 +1,7 @@
 # Data contract (`schema_version` 2)
 
-The site reads the JSON files in `src/data/`. They are produced by the crawler's `export-site` command; nothing else
+The site reads the JSON files in `src/data/`. They are produced by the crawler's `export-site` command and published in the
+separate `quehacer-data` repo (branch `data`); nothing else
 crosses between the two repos. This page is the interface: the crawler promises these files, the site relies on them.
 
 ```
@@ -115,6 +116,11 @@ what ends between exports.
 
 Descriptions (third-party text, large), prices, coordinates, internal database ids, the crawler's raw records, and anything
 about how the data was collected.
+
+## Safety checks at build time
+
+Links (`url`, `image_url`, `sources[].url`) must be absolute `https` URLs whose host is listed in `src/lib/allowed-hosts.json`;
+any coordinate-like field must be a finite number; strings and lists have size limits. A violation fails the build. See the README.
 
 ## Source of the data
 
