@@ -1,0 +1,54 @@
+{
+ "events": [
+  {
+   "id": "sample:event-1",
+   "title": "Evento de muestra 1",
+   "start": "2026-10-04T16:00:00-06:00",
+   "end": null,
+   "has_time": true,
+   "venue": "Sede de muestra",
+   "category": "film",
+   "is_free": null,
+   "image_url": null,
+   "url": "https://example.com/evento-1",
+   "source": "Fuente de muestra",
+   "sources": [
+    {
+     "name": "Fuente de muestra",
+     "url": "https://example.com/evento-1"
+    }
+   ]
+  },
+  {
+   "id": "sample:event-2",
+   "title": "Evento de muestra 2",
+   "start": "2026-10-04T17:00:00-06:00",
+   "end": "2026-10-04T18:00:00-06:00",
+   "has_time": true,
+   "venue": "Sede de muestra",
+   "category": "arts",
+   "is_free": false,
+   "image_url": null,
+   "url": "https://example.com/evento-2",
+   "source": "Fuente de muestra",
+   "sources": [
+    {
+     "name": "Fuente de muestra",
+     "url": "https://example.com/evento-2"
+    }
+   ]
+  }
+ ],
+ "ongoing": [
+  {
+   "id": "sample:ongoing-1",
+   "title": "Exposición de muestra",
+   "start": "2026-01-02T00:00:00-06:00",
+   "end": "2026-12-31T23:59:00-06:00",
+   "venue": null,
+   "category": "arts",
+   "url": "https://example.com/expo",
+   "image_url": null
+  }
+ ]
+}

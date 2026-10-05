@@ -6,3 +6,6 @@ dist/
 *.log
 *.bak*
 .claude/
+
+# Event data lives on the `data` branch (checked out into src/data in CI); see README.
+src/data/*.json

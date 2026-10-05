@@ -1,0 +1,17 @@
+{
+ "schema_version": 2,
+ "generated_at": "2026-10-04T21:11:10+00:00",
+ "cities": {
+  "monterrey": {
+   "slug": "monterrey",
+   "name": "Monterrey",
+   "timezone": "America/Monterrey",
+   "sources": [
+    {
+     "name": "Fuente de muestra",
+     "url": "https://example.com"
+    }
+   ]
+  }
+ }
+}
