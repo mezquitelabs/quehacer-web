@@ -1,5 +1,9 @@
-# Builds the site and publishes it to GitHub Pages on every push to main.
+# Builds the site and publishes it to GitHub Pages on every push to main (site code) or to data (event data).
 # Uses the official Astro action: https://docs.astro.build/en/guides/deploy/github/
+#
+# Code lives on `main`. The event data lives on the branch `data`, which the crawler REPLACES with a single commit on every
+# publish (so the public history never accumulates snapshots). The build checks out `main`, then `data`, and puts the data's src/data/*.json into src/data.
+# No secrets are needed: the repository is public and the deploy uses the built-in OIDC token for Pages.
 #
 # Production is the custom domain https://quehacer.mx/ (served at the root, so BASE_PATH=/). SITE_URL and BASE_PATH can
 # be overridden with repository VARIABLES (Settings > Secrets and variables > Actions > Variables), e.g. to publish
@@ -8,7 +12,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, data]
   workflow_dispatch:
 
 permissions:
@@ -26,23 +30,53 @@ env:
   GROUP_MIN_EVENTS: ${{ vars.GROUP_MIN_EVENTS || '4' }}
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # A push to `data` would otherwise check out `data` itself, so the code is always taken from main explicitly.
+      - name: Check out the site code (main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Check that the data branch exists
+        run: |
+          if ! git ls-remote --exit-code --heads origin data > /dev/null; then
+            echo "::error title=Missing data branch::The branch 'data' does not exist on this repository, so there is no event data to build. Publish it from the crawler (quehacer publish-site), or see 'If the data branch is deleted' in the README."
+            exit 1
+          fi
+
+      # The crawler's commit holds its files under src/data/, so the branch is checked out beside the code and the
+      # files are copied into place (checking it out straight into src/data would nest them as src/data/src/data).
+      - name: Check out the event data (data)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: _data
+          persist-credentials: false
+
+      - name: Put the event data in src/data (fails if it is empty)
+        run: |
+          shopt -s nullglob
+          files=(_data/src/data/*.json)
+          if [ ! -f _data/src/data/meta.json ] || [ "${#files[@]}" -lt 2 ]; then
+            echo "::error title=Empty data branch::The 'data' branch has no src/data/meta.json plus at least one src/data/<city>.json. Publish again from the crawler (quehacer publish-site)."
+            exit 1
+          fi
+          mkdir -p src/data
+          cp "${files[@]}" src/data/
+          rm -rf _data
+          ls -l src/data
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
       - run: npm ci
       - run: npm test
 
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install, build and upload the site
+      - name: Build and upload the site
         uses: withastro/action@v3
         with:
           node-version: 20

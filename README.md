@@ -1,8 +1,8 @@
 # quehacer-web
 
 Static site for a city-events data set (Astro, TypeScript, plain CSS). It **only reads JSON files**
-(`src/data/<city>.json` and `src/data/meta.json`, produced by a separate data exporter and committed here) and has no
-access to anything else, so the exporter's code, database and credentials never live in this repo.
+(`src/data/<city>.json` and `src/data/meta.json`, produced by a separate data exporter and published on this repo's
+`data` branch, see "Where the data comes from") and has no access to anything else, so the exporter's code, database and credentials never live in this repo.
 
 ## Data notice
 
@@ -28,9 +28,16 @@ npm run build        # static site in dist/
 npm run preview      # serve dist/ at http://localhost:4321/quehacer-web/
 ```
 
-Refresh the data, then rebuild: run the exporter's `export-site` command with `WEB_REPO_PATH` set to this checkout
-(or `--out <this checkout>/src/data`). The exporter has no built-in default location. The files it writes replace
-`src/data/<city>.json` and `src/data/meta.json`.
+`src/data/*.json` is **not tracked on `main`** (it is git-ignored), so a fresh clone has no data and `npm run build` fails until
+you provide it. Generate it from the crawler checkout (`~/quehacer`):
+
+```bash
+cd ~/quehacer
+.venv/bin/python -m quehacer.cli export-site --out ~/quehacer-web/src/data     # or set WEB_REPO_PATH and omit --out
+```
+
+The exporter has no built-in default location. `npm test` skips the suite that validates the real data files (with a message)
+when `src/data` is absent; a tiny synthetic sample in `tests/fixtures/data` keeps the validator itself covered.
 
 The files must follow the [data contract](docs/data-contract.md). `meta.json`'s `schema_version` is checked at build time:
 a mismatch stops the build with a message instead of publishing a broken site.
@@ -95,13 +102,14 @@ SITE_URL=https://example.com BASE_PATH=/ npm run build                 # any oth
 
 ## Deploying to GitHub Pages
 
-`.github/workflows/deploy.yml` runs the tests, builds with the official Astro action and publishes on **every push to
-`main`** (and on demand: Actions > Deploy > Run workflow). Nothing here creates the remote repo or pushes anything.
-Manual steps:
+`.github/workflows/deploy.yml` checks out `main` and the `data` branch, runs the tests, builds with the official Astro action
+and publishes on **every push to `main` or `data`** (and on demand: Actions > Deploy > Run workflow). It needs **no
+secrets**; deploys never overlap (one `pages` concurrency group, queued, never cancelled). It fails with a clear message if
+`data` is missing or empty. Nothing here creates the remote repo or pushes anything. Manual steps:
 
 1. **The repo** is `mezquitelabs/quehacer-web` on GitHub; add it as `origin` (through an SSH host alias that uses that account's key).
 2. **Visibility.** GitHub Pages on the free plan needs a **public** repository (a private one needs a paid plan). The site itself
-   is public either way. The repo contains no exporter code or secrets; its data files are what the site shows.
+   is public either way. The repo contains no exporter code or secrets; the `data` branch holds what the site shows.
 3. **Settings > Pages > Build and deployment > Source: GitHub Actions.**
 4. **Production is the custom domain `https://quehacer.mx/`.** The workflow's defaults are `SITE_URL=https://quehacer.mx` and
    `BASE_PATH=/`, so no repository variables are needed. `public/CNAME` (`quehacer.mx`) keeps the domain set on every deploy.
@@ -114,56 +122,47 @@ Manual steps:
 
 The workflow installs with `npm ci`, so commit `package-lock.json` (it is).
 
-## Publishing the data every day (described here, NOT automated yet)
+## Where the data comes from
 
-Today the data is published by hand. This is the flow it would follow once automated from the crawler's systemd timer;
-nothing below exists as a script or unit yet.
+Code and data live on **different branches** of this repository:
 
-**Flow (one run per day, after the crawl):**
+| Branch | Holds | Written by |
+|---|---|---|
+| `main` | the site's code, tests and workflow | normal pushes by hand |
+| `data` | `src/data/meta.json` and `src/data/<city>.json`, nothing else | the crawler, once a day (`quehacer daily`, which ends with `quehacer publish-site`) |
 
-1. **sync** in the crawler. Continue only on exit code `0` or `3` (3 = some sources degraded, the rest are fine; with systemd
-   either add `SuccessExitStatus=3` or let a wrapper script read the code). Stop on `1` or `2`: never publish after a failed crawl.
-2. **export-site into the web checkout**: `export-site` with `WEB_REPO_PATH` pointing at it.
-3. **Checks** (see below). Any failure stops the run before anything is committed.
-4. **Commit only if something changed**, then **push** with the deploy key. The push triggers the GitHub Actions workflow,
-   which tests, builds and publishes.
+`data` is **replaced with a single orphan commit on every publish** (force-push with a lease, author `quehacer-bot`, message
+`Update event data <UTC timestamp>`), so the public history never accumulates snapshots of third-party data. Never commit to
+`data` by hand and never merge it into `main`.
 
-**"Changed" needs care:** `meta.json` contains `generated_at`, which differs on every export. Compare the city files
-(`git diff --quiet -- src/data/<city>.json`) and the rest of `meta.json` ignoring `generated_at`; if only that timestamp moved,
-skip the commit (or commit at most once a week so the footer's "Actualizado" does not go stale).
+```
+crawler: sync -> publish-site -> force-push `data` (deploy key)
+                                      |  push to `data` triggers
+GitHub Actions: checkout main + checkout data -> copy data into src/data -> npm test -> build -> Pages
+```
 
-**Checks the flow needs before committing:**
+The push of `data` triggers the workflow, so every publish rebuilds the site with a fresh "Actualizado". A push to `main`
+(code change) rebuilds it with the current `data`.
 
-- The web checkout is on `main`, `git pull --ff-only` works, and the only modified paths are under `src/data/`
-  (anything else means someone is editing the repo by hand: stop).
-- `meta.json` parses and has `schema_version` equal to the one this site supports; every `<city>.json` parses.
-- **Sanity of the content:** `events` is not empty, and the count did not fall by more than about half compared with the
-  committed version (a crawl that quietly lost a source should not replace good data). `generated_at` is from today.
-- `npm test` passes (it includes the test that validates the data files against the contract) and `npm run build` succeeds.
-- **No secrets or personal data in what will be pushed:** the staged files are exactly `src/data/*.json`, and the crawler's
-  `.env` values do not appear in them (`grep -F -f` against the values, never printing them).
-- A lock so two runs never overlap (`flock`), and the commit identity of this repo set to the GitHub **noreply** address.
+### If the `data` branch is deleted (or damaged)
 
-**Authentication.** A timer has no desktop session, so interactive credentials and the keyring helper do not work (a headless
-`git push` over HTTPS fails with "could not read Username"). Use a credential made for machines:
+The workflow then fails with "Missing data branch" (or "Empty data branch") and the live site keeps its last good deploy. To
+recover, run from the crawler checkout:
 
-- **Preferred: an SSH deploy key** limited to this repo, with write access (Settings > Deploy keys > Add deploy key >
-  *Allow write access*). A deploy key belongs to one repository, so it cannot touch any other. Keep the private key in
-  `~/.ssh` with mode `600`, use an SSH host alias for it in `~/.ssh/config` (`IdentityFile` = that key, `IdentitiesOnly yes`) with the
-  remote `git@<alias>:mezquitelabs/quehacer-web.git`, and pin the key and host with
-  `GIT_SSH_COMMAND='ssh -i ~/.ssh/quehacer-web-deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes'` (with GitHub's host key
-  already in `known_hosts`).
-- **Alternative:** a fine-grained personal access token restricted to this repo with "Contents: Read and write", supplied through a
-  credential helper that does not need a keyring.
+```bash
+cd ~/quehacer
+.venv/bin/python -m quehacer.cli publish-site        # recreates the branch from the crawler's database
+```
 
-**Failure handling:** a failed export, check or push leaves the last published site untouched and exits non-zero so the unit shows
-`failed` (the crawler's `--notify` can alert on repeated failures). A failed push must not hide a successful crawl: the data stays in
-the crawler's database and the next run publishes it.
+It needs `QUEHACER_DATA_REMOTE` in the crawler's `.env` (deploy-key alias URL). The push creates `data` from nothing (the lease
+expects it absent) and triggers a deploy. If an export looks too small compared with the last publish, add `--force-small`
+once. The crawler's database is the source of truth, so nothing is lost.
 
 ## Layout
 
 ```
-src/data/            <city>.json + meta.json (from the crawler)
+src/data/            <city>.json + meta.json (git-ignored; from the `data` branch or the crawler's export-site)
+tests/fixtures/data/ tiny synthetic sample that keeps the contract test running without real data
 src/lib/filters.ts   pure filter logic (+ filters.test.ts)
 src/lib/format.ts    Spanish date/time formatting in the city's timezone
 src/lib/url.ts       withBase()
