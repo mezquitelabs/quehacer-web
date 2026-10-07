@@ -23,9 +23,13 @@ on:
 permissions:
   contents: read
 
+# One deploy at a time, and the NEWEST run wins: a run that is stuck (it happened once: a deploy job sat in "waiting" for
+# a day and every later run queued behind it, so the site silently went stale) is cancelled by the next hourly run.
+# Safe because every run rebuilds from the latest main + data, so nothing is lost by cancelling an older one, and a
+# cancelled deploy leaves the previous deployment live.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   SITE_URL: ${{ vars.SITE_URL || 'https://quehacer.mx' }}
@@ -36,6 +40,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out the site code (main)
         uses: actions/checkout@v4
@@ -89,6 +94,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # Only this job may publish to Pages (and mint the OIDC token that deploy-pages needs).
     permissions:
       pages: write

@@ -116,7 +116,8 @@ site updates **within about an hour** (next scheduled run), or immediately if yo
 disables scheduled workflows after 60 days without repository activity** (commits, not workflow runs). If the hourly deploys stop,
 check Actions for the "disabled" banner and re-enable it (or push any commit to `main`); the site keeps serving its last deploy meanwhile.
 
-It needs **no secrets**; deploys never overlap (one `pages` concurrency group, queued, never cancelled). It fails with a clear
+It needs **no secrets**; deploys never overlap (one `pages` concurrency group; the **newest run cancels an older one**, so a stuck run cannot block the hourly
+updates, which once left the site stale for a day; jobs also have a 15-minute timeout). It fails with a clear
 message if the data branch is missing or empty. Nothing here creates the remote repo or pushes anything. Manual steps:
 
 1. **The repo** is `mezquitelabs/quehacer-web` on GitHub; add it as `origin` (through an SSH host alias that uses that account's key).
