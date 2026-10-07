@@ -1,5 +1,7 @@
 {
   "hosts": [
+    "arema.mx",
+    "cdn.arema.dev",
     "conarte.org.mx",
     "cultura.uanl.mx",
     "s1.ticketm.net",
