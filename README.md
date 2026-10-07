@@ -108,15 +108,15 @@ action and publishes. **How a deploy is triggered:**
 | Trigger | When |
 |---|---|
 | push to `main` | a code change |
-| `schedule` (cron `17 * * * *`) | **every hour**, at minute 17 UTC, which is how new data gets picked up |
+| `schedule` (cron `17 16 * * *` and `17 4 * * *`) | **twice a day** (16:17 and 04:17 UTC), which is how new data gets picked up. A scheduled run first compares the `data` branch's commit with `/data-version.txt` on the live site and **stops in seconds if they match** |
 | `workflow_dispatch` | on demand: Actions > Deploy > Run workflow (about 2 to 5 minutes) |
 
 A publish by the crawler pushes to the **other** repo (`quehacer-data`) and cannot trigger anything here, so after a publish the
-site updates **within about an hour** (next scheduled run), or immediately if you click "Run workflow". Caveat: **GitHub
-disables scheduled workflows after 60 days without repository activity** (commits, not workflow runs). If the hourly deploys stop,
+site updates at the **next scheduled run (16:17 or 04:17 UTC, up to ~45 min late)**, or immediately if you click "Run workflow". Caveat: **GitHub
+disables scheduled workflows after 60 days without repository activity** (commits, not workflow runs). If the scheduled deploys stop,
 check Actions for the "disabled" banner and re-enable it (or push any commit to `main`); the site keeps serving its last deploy meanwhile.
 
-It needs **no secrets**; deploys never overlap (one `pages` concurrency group; the **newest run cancels an older one**, so a stuck run cannot block the hourly
+It needs **no secrets**; deploys never overlap (one `pages` concurrency group; the **newest run cancels an older one**, so a stuck run cannot block later
 updates, which once left the site stale for a day; jobs also have a 15-minute timeout). It fails with a clear
 message if the data branch is missing or empty. Nothing here creates the remote repo or pushes anything. Manual steps:
 
@@ -151,7 +151,7 @@ it by hand. The crawler's deploy key can write `quehacer-data` only, so a bug or
 ```
 crawler: sync -> publish-site -> force-push quehacer-data/data (deploy key)
                                            |   (no trigger across repos)
-GitHub Actions in quehacer-web: hourly schedule / push to main / manual
+GitHub Actions in quehacer-web: twice-daily schedule / push to main / manual
    -> checkout main + checkout quehacer-data@data -> copy into src/data -> safety checks -> npm test -> build -> Pages
 ```
 
@@ -183,7 +183,7 @@ cd ~/quehacer
 If the repo itself is gone, create an empty public `mezquitelabs/quehacer-data` on GitHub and add the crawler's deploy key to it
 (Settings > Deploy keys > Allow write access) first. The push creates `data` from nothing (the lease expects it absent). If an
 export looks too small compared with the last publish, add `--force-small` once. The crawler's database is the source of truth,
-so nothing is lost. Then run the deploy workflow ("Run workflow") or wait for the hourly one.
+so nothing is lost. Then run the deploy workflow ("Run workflow") or wait for the next scheduled one.
 
 ## Layout
 

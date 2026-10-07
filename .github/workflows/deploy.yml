@@ -1,10 +1,12 @@
-# Builds the site and publishes it to GitHub Pages: on every push to main (site code), every hour (new data), and on demand.
+# Builds the site and publishes it to GitHub Pages: on every push to main (site code), twice a day (new data), and on demand.
 # Uses the official Astro action: https://docs.astro.build/en/guides/deploy/github/
 #
 # Code lives in this repo (main). The event data lives in a SEPARATE public repo, mezquitelabs/quehacer-data, on its branch
 # `data`, which the crawler REPLACES with a single commit on every publish (so the public history never accumulates
 # snapshots). A push there cannot trigger this workflow (a different repo, and workflows run from the files of the pushed
-# commit), so the build polls: the hourly schedule picks up the newest data, "Run workflow" does it immediately.
+# commit), so the build polls: a scheduled run first compares the data branch's commit with the one the live site was built
+# from (public file data-version.txt) and stops there if they match, so a day with no new data costs a few seconds.
+# "Run workflow" and pushes to main always build.
 # The build checks out main, then the data repo, and puts its src/data/*.json into src/data.
 # No secrets are needed: both repos are public and the deploy uses the built-in OIDC token for Pages.
 #
@@ -18,18 +20,12 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
-    - cron: "17 * * * *" # hourly, at minute 17 (UTC)
+    # The crawler publishes at about 15:00 UTC (09:00 CST). 16:17 picks that up; 04:17 catches a late (laptop woke up later) publish.
+    - cron: "17 16 * * *"
+    - cron: "17 4 * * *"
 
 permissions:
   contents: read
-
-# One deploy at a time, and the NEWEST run wins: a run that is stuck (it happened once: a deploy job sat in "waiting" for
-# a day and every later run queued behind it, so the site silently went stale) is cancelled by the next hourly run.
-# Safe because every run rebuilds from the latest main + data, so nothing is lost by cancelling an older one, and a
-# cancelled deploy leaves the previous deployment live.
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 env:
   SITE_URL: ${{ vars.SITE_URL || 'https://quehacer.mx' }}
@@ -38,7 +34,27 @@ env:
   DATA_REPO: mezquitelabs/quehacer-data
 
 jobs:
+  # Cheap gate for scheduled runs: is there data the live site does not have yet? Pushes and manual runs always build.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.gate.outputs.build }}
+    steps:
+      - id: gate
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; echo "Not a scheduled run: building."; exit 0; fi
+          remote=$(git ls-remote --exit-code --heads "https://github.com/${DATA_REPO}.git" data | cut -f1) || {
+            echo "::error title=Missing data branch::The branch 'data' does not exist in ${DATA_REPO}. Publish it from the crawler (quehacer publish-site)."; exit 1; }
+          base="${BASE_PATH%/}/"
+          live=$(curl -fsS --max-time 20 "${SITE_URL%/}${base}data-version.txt" 2>/dev/null | tr -d '[:space:]' || true)
+          echo "data branch: $remote"; echo "live site:   ${live:-none}"
+          if [ "$remote" = "$live" ]; then echo "build=false" >> "$GITHUB_OUTPUT"; echo "No new data: nothing to deploy."
+          else echo "build=true" >> "$GITHUB_OUTPUT"; echo "New data: building."; fi
+
   build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -73,8 +89,10 @@ jobs:
             echo "::error title=Empty data branch::The 'data' branch of ${DATA_REPO} has no src/data/meta.json plus at least one src/data/<city>.json. Publish again from the crawler (quehacer publish-site)."
             exit 1
           fi
-          mkdir -p src/data
+          mkdir -p src/data public
           cp "${files[@]}" src/data/
+          # Published at /data-version.txt so the next scheduled run can tell whether the live site is current.
+          git -C _data rev-parse HEAD > public/data-version.txt
           rm -rf _data
           ls -l src/data
 
@@ -95,6 +113,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # One deploy at a time, and the NEWEST wins: a stuck deploy (it happened once: a job sat in "waiting" for a day and every
+    # later run queued behind it) is cancelled by the next one. Only real deploys get here, so no-op checks never cancel anything.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
     # Only this job may publish to Pages (and mint the OIDC token that deploy-pages needs).
     permissions:
       pages: write
