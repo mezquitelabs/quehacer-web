@@ -166,7 +166,7 @@ and **fails with a message listing the problems** if:
 - a string is over its limit (title 400, venue 400, id 300, urls 2048, anything else 1000) or a list has over 20000 entries.
 
 **Allowed hosts.** `src/lib/allowed-hosts.json` lists the exact hostnames (no wildcards, no subdomain matching). Today:
-`conarte.org.mx`, `cultura.uanl.mx`, `s1.ticketm.net`, `ticketmaster.com.mx`, `www.nl.gob.mx`, `www.ticketmaster.com.mx`. When a
+`conarte.org.mx`, `cultura.uanl.mx`, `s1.ticketm.net`, `storage.showcenter.com.mx`, `ticketmaster.com.mx`, `www.nl.gob.mx`, `www.showcenter.com.mx`, `www.ticketmaster.com.mx`. When a
 new source (or a new image CDN) appears, the build fails naming the host; if it is legitimate, add it to that file, commit and push
 `main` (`npm test` covers the check with synthetic bad data in `src/lib/data-guard.test.ts`).
 
