@@ -1,5 +1,6 @@
 {
   "hosts": [
+    "admin.arenamonterrey.warelan.com",
     "arema.mx",
     "cdn.arema.dev",
     "conarte.org.mx",
@@ -10,6 +11,7 @@
     "ticketmaster.com.mx",
     "www.nl.gob.mx",
     "www.showcenter.com.mx",
+    "www.superboletos.com",
     "www.ticketmaster.com.mx"
   ]
 }
