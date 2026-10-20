@@ -3,7 +3,7 @@ import Layout from '../../components/Layout.astro';
 import EventCard from '../../components/EventCard.astro';
 import EventGroup from '../../components/EventGroup.astro';
 import { loadCities } from '../../lib/data';
-import { CATEGORIES, DAY_FILTERS, categoryCounts, localDateKey, primaryCategories } from '../../lib/filters';
+import { CATEGORIES, DAY_FILTERS, categoryCounts, localDateKey, primaryCategories, shownSources, sourceCounts, sourceSlug } from '../../lib/filters';
 import { formatDayHeading } from '../../lib/format';
 import { groupDay, groupMinFromEnv, placeGroups } from '../../lib/group';
 import { withBase } from '../../lib/url';
@@ -26,13 +26,31 @@ const thisYear = new Date().getFullYear();
 // 4 or more events at one venue on one day become a single expandable card; set GROUP_MIN_EVENTS to change it.
 const groupMin = groupMinFromEnv(process.env.GROUP_MIN_EVENTS);
 
+// The source filter: every source that lists at least one event, biggest first. An event that two sources list belongs to both.
+const sourceNames = new Map<string, { name: string; total: number }>();
+for (const event of city.events) {
+  for (const slug of new Set(event.sources.map((s) => sourceSlug(s.name)))) {
+    const name = event.sources.find((s) => sourceSlug(s.name) === slug)!.name;
+    sourceNames.set(slug, { name, total: (sourceNames.get(slug)?.total ?? 0) + 1 });
+  }
+}
+const sourceList = [...sourceNames.entries()]
+  .map(([slug, v]) => ({ slug, name: v.name, total: v.total }))
+  .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
+
 // Embedded once, for the filters: just what they need.
 const filterData = {
   timeZone: tz,
-  events: city.events.map((e) => ({ id: e.id, day: localDateKey(e.start, tz), cat: e.category, start: e.start, end: e.end, hasTime: e.has_time, free: e.is_free === true })),
+  sourceOrder: sourceList.map((s) => s.slug),
+  events: city.events.map((e) => ({
+    id: e.id, day: localDateKey(e.start, tz), cat: e.category, start: e.start, end: e.end, hasTime: e.has_time, free: e.is_free === true,
+    src: [...new Set(e.sources.map((s) => sourceSlug(s.name)))],
+  })),
 };
 const initialCounts = categoryCounts(filterData.events, 'todos', new Date(), tz);
 const initiallyShown = primaryCategories(initialCounts, new Set());
+const initialSourceCounts = sourceCounts(filterData.events, 'todos', new Date(), tz);
+const initialSources = shownSources(initialSourceCounts, new Set(), filterData.sourceOrder);
 const json = JSON.stringify(filterData).replace(/</g, '\\u003c'); // so the data can never close its own tag early
 const names = city.sources.map((s) => s.name).join(', ');
 ---
@@ -62,6 +80,11 @@ const names = city.sources.map((s) => s.name).join(', ');
       <button type="button" class="chip" id="cat-toggle" aria-expanded="false" aria-controls="cat-panel">
         <span id="cat-toggle-label">Categorías</span><span class="chev" aria-hidden="true"></span>
       </button>
+      {sourceList.length > 1 && (
+        <button type="button" class="chip" id="src-toggle" aria-expanded="false" aria-controls="src-panel">
+          <span id="src-toggle-label">Fuentes</span><span class="chev" aria-hidden="true"></span>
+        </button>
+      )}
     </div>
     <div id="statusrow" class="statusrow">
       <p class="status"><span id="status" aria-live="polite">{city.events.length} eventos próximos</span></p>
@@ -74,6 +97,15 @@ const names = city.sources.map((s) => s.name).join(', ');
         </button>
       ))}
     </div>
+    {sourceList.length > 1 && (
+      <div id="src-panel" class="cat-panel" role="group" aria-label="Fuente" hidden>
+        {sourceList.map((src) => (
+          <button type="button" class="chip" data-src-btn={src.slug} aria-pressed="false" hidden={!initialSources.has(src.slug)}>
+            {src.name} <span class="count" data-src-count-for={src.slug}>{initialSourceCounts[src.slug] ?? 0}</span>
+          </button>
+        ))}
+      </div>
+    )}
   </div>
 
   <div id="empty" class="empty" hidden>
@@ -106,7 +138,7 @@ const names = city.sources.map((s) => s.name).join(', ');
 
   <script is:inline type="application/json" id="events-data" set:html={json}></script>
   <script>
-    import { CATEGORIES, addDays, categoryCounts, defaultDay, isDateKey, liveEvents, localDateKey, nextDayWithEvents, primaryCategories, dayRange, visibleIds, type DayFilter, type Filterable, type Timed } from '../../lib/filters';
+    import { CATEGORIES, addDays, categoryCounts, defaultDay, isDateKey, liveEvents, localDateKey, matchesSource, nextDayWithEvents, primaryCategories, dayRange, shownSources, sourceCounts, visibleIds, type DayFilter, type Filterable, type Timed } from '../../lib/filters';
     import { formatDayShort } from '../../lib/format';
     import { groupNoun, timeRange } from '../../lib/group';
     import { parseUrlState, serializeUrlState } from '../../lib/url-state';
@@ -114,7 +146,7 @@ const names = city.sources.map((s) => s.name).join(', ');
 
     const dataEl = document.getElementById('events-data');
     if (dataEl) {
-      const { timeZone, events } = JSON.parse(dataEl.textContent ?? '{}') as { timeZone: string; events: (Filterable & Timed)[] };
+      const { timeZone, events, sourceOrder = [] } = JSON.parse(dataEl.textContent ?? '{}') as { timeZone: string; events: (Filterable & Timed)[]; sourceOrder?: string[] };
       const $ = <T extends Element>(sel: string) => Array.from(document.querySelectorAll<T>(sel));
       const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const cards = new Map($<HTMLElement>('[data-id]').map((el) => [el.dataset.id!, el]));
@@ -128,16 +160,20 @@ const names = city.sources.map((s) => s.name).join(', ');
       const noneEl = byId('none');
       const catPanel = byId('cat-panel');
       const catToggle = byId<HTMLButtonElement>('cat-toggle');
+      const srcPanel = document.getElementById('src-panel');
+      const srcToggle = document.getElementById('src-toggle') as HTMLButtonElement | null;
+      const knownSources = new Set<string>(sourceOrder);
 
       const startedAt = new Date();
       const def = defaultDay(liveEvents(events, startedAt, timeZone), startedAt, timeZone);
-      const state: { day: DayFilter; categories: Set<Category>; free: boolean } = { day: def, categories: new Set(), free: false };
+      const state: { day: DayFilter; categories: Set<Category>; sources: Set<string>; free: boolean } = { day: def, categories: new Set(), sources: new Set(), free: false };
       let nextDay: DayFilter | null = null;
 
       const readUrl = () => {
         const u = parseUrlState(location.search);
         state.day = u.day ?? def;
         state.categories = new Set(u.categories);
+        state.sources = new Set(u.sources.filter((slug) => knownSources.has(slug))); // a slug from an old link may no longer exist
         state.free = u.free;
       };
       const writeUrl = () => {
@@ -176,7 +212,7 @@ const names = city.sources.map((s) => s.name).join(', ');
           const key = section.dataset.day;
           section.querySelector('[data-day-tag]')!.textContent = key === today ? 'Hoy' : key === tomorrow ? 'Mañana' : '';
         }
-        const counts = categoryCounts(live, state.day, now, timeZone, state.free);
+        const counts = categoryCounts(live, state.day, now, timeZone, state.free, state.sources);
         for (const { id } of CATEGORIES) {
           const span = document.querySelector<HTMLElement>(`[data-count-for="${id}"]`);
           if (span) span.textContent = String(counts[id]);
@@ -186,17 +222,33 @@ const names = city.sources.map((s) => s.name).join(', ');
           b.hidden = !shownCats.has(b.dataset.catBtn as Category);
           b.setAttribute('aria-pressed', String(state.categories.has(b.dataset.catBtn as Category)));
         });
+        const srcCounts = sourceCounts(live, state.day, now, timeZone, state.free, state.categories);
+        const shownSrc = shownSources(srcCounts, state.sources, sourceOrder);
+        $<HTMLElement>('[data-src-count-for]').forEach((span) => (span.textContent = String(srcCounts[span.dataset.srcCountFor!] ?? 0)));
+        $<HTMLElement>('[data-src-btn]').forEach((b) => {
+          b.hidden = !shownSrc.has(b.dataset.srcBtn!);
+          b.setAttribute('aria-pressed', String(state.sources.has(b.dataset.srcBtn!)));
+        });
+        const srcLabel = document.getElementById('src-toggle-label');
+        if (srcLabel) srcLabel.textContent = state.sources.size > 0 ? `Fuentes (${state.sources.size})` : 'Fuentes';
         $<HTMLElement>('[data-day-btn]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dayBtn === state.day)));
         byId('cat-toggle-label').textContent = state.categories.size > 0 ? `Categorías (${state.categories.size})` : 'Categorías';
-        $<HTMLElement>('[data-free-btn]').forEach((b) => b.setAttribute('aria-pressed', String(state.free)));
+        $<HTMLElement>('[data-src-btn]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const slug = b.dataset.srcBtn!;
+          state.sources.has(slug) ? state.sources.delete(slug) : state.sources.add(slug);
+          render();
+        }),
+      );
+      $<HTMLElement>('[data-free-btn]').forEach((b) => b.setAttribute('aria-pressed', String(state.free)));
 
-        const filtered = state.categories.size > 0 || state.free;
+        const filtered = state.categories.size > 0 || state.sources.size > 0 || state.free;
         const inDay = visibleIds(live, { day: state.day, categories: new Set() }, now, timeZone);
         noneEl.hidden = live.length > 0 || events.length === 0;
         emptyEl.hidden = ids.size > 0 || live.length === 0;
         if (!emptyEl.hidden) {
           const range = dayRange(state.day, now, timeZone);
-          const matching = live.filter((e) => (state.categories.size === 0 || state.categories.has(e.cat)) && (!state.free || e.free === true));
+          const matching = live.filter((e) => (state.categories.size === 0 || state.categories.has(e.cat)) && matchesSource(e.src, state.sources) && (!state.free || e.free === true));
           nextDay = nextDayWithEvents(matching, range ? range.to : today);
           emptyMsg.textContent = inDay.size === 0 ? `Sin eventos ${whenText(state.day)}.` : 'Ningún evento coincide con estos filtros.';
           nextBtn.hidden = nextDay === null;
@@ -242,6 +294,11 @@ const names = city.sources.map((s) => s.name).join(', ');
         catToggle.setAttribute('aria-expanded', String(open));
         catPanel.hidden = !open;
       });
+      srcToggle?.addEventListener('click', () => {
+        const open = srcToggle.getAttribute('aria-expanded') !== 'true';
+        srcToggle.setAttribute('aria-expanded', String(open));
+        if (srcPanel) srcPanel.hidden = !open;
+      });
       nextBtn.addEventListener('click', () => {
         if (nextDay) state.day = nextDay;
         render();
@@ -249,6 +306,7 @@ const names = city.sources.map((s) => s.name).join(', ');
       });
       resetBtn.addEventListener('click', () => {
         state.categories.clear();
+        state.sources.clear();
         state.free = false;
         render();
       });
@@ -261,6 +319,10 @@ const names = city.sources.map((s) => s.name).join(', ');
       if (state.categories.size > 0) {
         catPanel.hidden = false;
         catToggle.setAttribute('aria-expanded', 'true');
+      }
+      if (state.sources.size > 0 && srcPanel && srcToggle) {
+        srcPanel.hidden = false;
+        srcToggle.setAttribute('aria-expanded', 'true');
       }
       byId('when').hidden = false; // without JS the full list is shown and no dead buttons
       byId('refine').hidden = false;

@@ -41,6 +41,24 @@ export interface Filterable {
   cat: Category;
   /** Known to be free (`is_free === true`); unknown is not free. */
   free?: boolean;
+  /** Slugs (see `sourceSlug`) of EVERY source that lists the event, not only the one shown. */
+  src?: string[];
+}
+
+/** A stable, URL-safe name for a source: "Gobierno de Nuevo León" -> "gobierno-de-nuevo-leon". */
+export const sourceSlug = (name: string): string =>
+  name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'fuente';
+
+const NO_SOURCES: ReadonlySet<string> = new Set();
+
+/** No source selected means all of them; an event matches when ANY of the sources that list it is selected. */
+export function matchesSource(src: readonly string[] | undefined, selected: ReadonlySet<string>): boolean {
+  return selected.size === 0 || (src ?? []).some((s) => selected.has(s));
 }
 
 /** YYYY-MM-DD of an instant in the CITY's timezone (never the browser's), so dates near midnight are right. */
@@ -103,6 +121,8 @@ export function matchesCategory(cat: Category, selected: ReadonlySet<Category>):
 export interface FilterState {
   day: DayFilter;
   categories: ReadonlySet<Category>;
+  /** Source slugs; empty or missing means every source. */
+  sources?: ReadonlySet<string>;
   /** Only events known to be free. */
   free?: boolean;
 }
@@ -110,16 +130,62 @@ export interface FilterState {
 export function visibleIds(events: Filterable[], state: FilterState, now: Date, timeZone: string): Set<string> {
   return new Set(
     events
-      .filter((e) => matchesDay(e.day, state.day, now, timeZone) && matchesCategory(e.cat, state.categories) && (!state.free || e.free === true))
+      .filter(
+        (e) =>
+          matchesDay(e.day, state.day, now, timeZone) &&
+          matchesCategory(e.cat, state.categories) &&
+          matchesSource(e.src, state.sources ?? NO_SOURCES) &&
+          (!state.free || e.free === true),
+      )
       .map((e) => e.id),
   );
 }
 
-/** Events per category among those that pass the DAY filter (and Gratis, if on): the chip counts, regardless of selected chips. */
-export function categoryCounts(events: Filterable[], day: DayFilter, now: Date, timeZone: string, free = false): Record<Category, number> {
+/**
+ * Events per category among those that pass the DAY filter (and Gratis, and the selected sources, if any): the chip counts,
+ * regardless of which categories are selected.
+ */
+export function categoryCounts(
+  events: Filterable[],
+  day: DayFilter,
+  now: Date,
+  timeZone: string,
+  free = false,
+  sources: ReadonlySet<string> = NO_SOURCES,
+): Record<Category, number> {
   const counts = Object.fromEntries(CATEGORIES.map((c) => [c.id, 0])) as Record<Category, number>;
-  for (const e of events) if (matchesDay(e.day, day, now, timeZone) && (!free || e.free === true)) counts[normalizeCategory(e.cat)] += 1;
+  for (const e of events) {
+    if (matchesDay(e.day, day, now, timeZone) && (!free || e.free === true) && matchesSource(e.src, sources)) counts[normalizeCategory(e.cat)] += 1;
+  }
   return counts;
+}
+
+/**
+ * Events per source among those that pass the DAY filter (and Gratis, and the selected categories, if any), regardless of which
+ * sources are selected. An event that several sources list counts once under each of them.
+ */
+export function sourceCounts(
+  events: Filterable[],
+  day: DayFilter,
+  now: Date,
+  timeZone: string,
+  free = false,
+  categories: ReadonlySet<Category> = new Set(),
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const e of events) {
+    if (!matchesDay(e.day, day, now, timeZone) || (free && e.free !== true) || !matchesCategory(e.cat, categories)) continue;
+    for (const slug of new Set(e.src ?? [])) counts[slug] = (counts[slug] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Which source chips to show: those with at least one event under the current filters, plus any the visitor has selected (so it
+ * can still be un-selected), in the given `order`. Slugs that are not in `order` (an unknown one from a URL) are never shown.
+ */
+export function shownSources(counts: Record<string, number>, selected: ReadonlySet<string>, order: readonly string[]): Set<string> {
+  return new Set(order.filter((slug) => (counts[slug] ?? 0) > 0 || selected.has(slug)));
 }
 
 /**

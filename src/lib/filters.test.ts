@@ -10,7 +10,11 @@ import {
   localDateKey,
   matchesCategory,
   matchesDay,
+  matchesSource,
   shownCategories,
+  shownSources,
+  sourceCounts,
+  sourceSlug,
   visibleIds,
   weekday,
   type Filterable,
@@ -187,5 +191,71 @@ describe('finished events', () => {
     expect(categoryCounts(live, 'hoy', NOW, TZ)).toEqual({ music: 1, comedy: 0, theatre: 0, film: 0, arts: 1, sports: 0, family: 0, community: 0, other: 0 });
     expect([...visibleIds(live, { day: 'todos', categories: new Set(['music'] as const) }, NOW, TZ)]).toEqual(['running']);
     expect(liveEvents(items, new Date('2026-10-12T12:00:00-06:00'), TZ)).toEqual([]); // everything over
+  });
+});
+
+
+describe('sources', () => {
+  const ev = (id: string, src: string[], over: Partial<Filterable> = {}): Filterable => ({ id, day: '2026-10-07', cat: 'music', src, ...over });
+  const events = [
+    ev('a', ['ticketmaster']),
+    ev('b', ['arema']),
+    ev('c', ['arema', 'conarte']), // one event listed by two sources
+    ev('d', ['conarte'], { cat: 'arts', day: '2026-10-08' }),
+    ev('e', ['ticketmaster'], { free: true }),
+  ];
+  const none = new Set<string>();
+
+  it('slugs are lowercase, accent-free and URL-safe', () => {
+    expect(sourceSlug('Gobierno de Nuevo León')).toBe('gobierno-de-nuevo-leon');
+    expect(sourceSlug('Cineteca Nuevo León')).toBe('cineteca-nuevo-leon');
+    expect(sourceSlug('  AREMA!! ')).toBe('arema');
+    expect(sourceSlug('???')).toBe('fuente');
+  });
+
+  it('none selected means all; several combine with OR; an event matches through ANY of its sources', () => {
+    expect(matchesSource(['arema'], none)).toBe(true);
+    expect(matchesSource(undefined, none)).toBe(true);
+    expect(matchesSource(['arema', 'conarte'], new Set(['conarte']))).toBe(true);
+    expect(matchesSource(['arema'], new Set(['conarte']))).toBe(false);
+    expect(matchesSource(undefined, new Set(['conarte']))).toBe(false);
+    expect(matchesSource(['arema'], new Set(['conarte', 'arema']))).toBe(true);
+  });
+
+  it('visibleIds combines sources with day, category and Gratis (AND)', () => {
+    const state = (over: object) => ({ day: 'todos' as const, categories: new Set<never>(), ...over });
+    const ids = (s: object) => [...visibleIds(events, state(s), WED_NOON, TZ)].sort();
+    expect(ids({})).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(ids({ sources: new Set(['arema']) })).toEqual(['b', 'c']);
+    expect(ids({ sources: new Set(['conarte']) })).toEqual(['c', 'd']);
+    expect(ids({ sources: new Set(['arema', 'ticketmaster']) })).toEqual(['a', 'b', 'c', 'e']);
+    expect(ids({ sources: new Set(['ticketmaster']), free: true })).toEqual(['e']);
+    expect(ids({ sources: new Set(['conarte']), day: '2026-10-08' })).toEqual(['d']);
+    expect(ids({ sources: new Set(['conarte']), categories: new Set(['arts']) })).toEqual(['d']);
+  });
+
+  it('source counts follow the day, Gratis and category filters, not the selected sources', () => {
+    expect(sourceCounts(events, 'todos', WED_NOON, TZ)).toEqual({ ticketmaster: 2, arema: 2, conarte: 2 });
+    expect(sourceCounts(events, '2026-10-08', WED_NOON, TZ)).toEqual({ conarte: 1 });
+    expect(sourceCounts(events, 'todos', WED_NOON, TZ, true)).toEqual({ ticketmaster: 1 });
+    expect(sourceCounts(events, 'todos', WED_NOON, TZ, false, new Set(['arts']))).toEqual({ conarte: 1 });
+  });
+
+  it('an event listed twice by the same source is counted once', () => {
+    expect(sourceCounts([ev('x', ['arema', 'arema'])], 'todos', WED_NOON, TZ)).toEqual({ arema: 1 });
+  });
+
+  it('category counts follow the selected sources', () => {
+    expect(categoryCounts(events, 'todos', WED_NOON, TZ).music).toBe(4);
+    expect(categoryCounts(events, 'todos', WED_NOON, TZ, false, new Set(['conarte'])).music).toBe(1);
+    expect(categoryCounts(events, 'todos', WED_NOON, TZ, false, new Set(['conarte'])).arts).toBe(1);
+  });
+
+  it('shows sources with events, keeps a selected one at count 0, in the given order, and never an unknown slug', () => {
+    const order = ['ticketmaster', 'arema', 'conarte'];
+    expect([...shownSources({ arema: 2 }, none, order)]).toEqual(['arema']);
+    expect([...shownSources({ arema: 2 }, new Set(['conarte']), order)]).toEqual(['arema', 'conarte']);
+    expect([...shownSources({}, new Set(['nope']), order)]).toEqual([]);
+    expect([...shownSources({ conarte: 1, ticketmaster: 3 }, none, order)]).toEqual(['ticketmaster', 'conarte']);
   });
 });

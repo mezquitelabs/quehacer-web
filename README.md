@@ -60,6 +60,11 @@ Filters (client-side, no reload; with JS disabled the full list is simply shown)
   and Sunday (on Saturday it starts today; on Sunday only today is left). "Próximos 7 días" is today plus the next six.
 - **Category** chips, multi-select (none selected = all), each with a count of **events** (not cards). The counts follow the
   day filter. Chips with no events are hidden, except one the visitor has selected (so it can still be un-selected).
+- **Fuentes** (sources), next to Categorías: one chip per source that has events, biggest first, multi-select (none selected = all),
+  each with a count. An event that several sources list **matches through any of them** and counts once under each. The chips are
+  built from the data (a new source shows up by itself); their counts follow the day, Gratis and category filters, and the category
+  counts follow the selected sources. The URL keeps the choice: `?fuente=arema,arena-monterrey` (slugs are the source names
+  lower-cased without accents; unknown slugs in an old link are ignored). The button is hidden when there is only one source.
 
 What the page shows and hides:
 
