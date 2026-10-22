@@ -8,10 +8,13 @@ import {
   STALE_HOURS,
   type Timed,
   localDateKey,
+  collectionCounts,
   matchesCategory,
+  matchesCollection,
   matchesDay,
   matchesSource,
   shownCategories,
+  shownCollections,
   shownSources,
   sourceCounts,
   sourceSlug,
@@ -257,5 +260,59 @@ describe('sources', () => {
     expect([...shownSources({ arema: 2 }, new Set(['conarte']), order)]).toEqual(['arema', 'conarte']);
     expect([...shownSources({}, new Set(['nope']), order)]).toEqual([]);
     expect([...shownSources({ conarte: 1, ticketmaster: 3 }, none, order)]).toEqual(['ticketmaster', 'conarte']);
+  });
+});
+
+
+describe('collections (a festival that cuts across categories and sources)', () => {
+  const ev = (id: string, col: string[], over: Partial<Filterable> = {}): Filterable => ({ id, day: '2026-10-07', cat: 'music', src: ['manual'], col, ...over });
+  const events = [
+    ev('a', ['fest']),
+    ev('b', ['fest'], { cat: 'film' }),
+    ev('c', [], { src: ['arema'] }),
+    ev('d', ['fest', 'otra'], { day: '2026-10-08', free: true }),
+    ev('e', ['otra'], { src: ['arema'] }),
+  ];
+  const none = new Set<string>();
+  const state = (over: object) => ({ day: 'todos' as const, categories: new Set<never>(), ...over });
+  const ids = (s: object) => [...visibleIds(events, state(s), WED_NOON, TZ)].sort();
+
+  it('none selected means all; several combine with OR; an event without collections only shows when none is selected', () => {
+    expect(matchesCollection(undefined, none)).toBe(true);
+    expect(matchesCollection([], none)).toBe(true);
+    expect(matchesCollection(['fest'], new Set(['fest']))).toBe(true);
+    expect(matchesCollection([], new Set(['fest']))).toBe(false);
+    expect(matchesCollection(undefined, new Set(['fest']))).toBe(false);
+    expect(matchesCollection(['otra'], new Set(['fest', 'otra']))).toBe(true);
+  });
+
+  it('visibleIds combines the collection with day, category, source and Gratis (AND)', () => {
+    expect(ids({})).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(ids({ collections: new Set(['fest']) })).toEqual(['a', 'b', 'd']);
+    expect(ids({ collections: new Set(['fest', 'otra']) })).toEqual(['a', 'b', 'd', 'e']);
+    expect(ids({ collections: new Set(['fest']), categories: new Set(['film']) })).toEqual(['b']);
+    expect(ids({ collections: new Set(['otra']), sources: new Set(['arema']) })).toEqual(['e']);
+    expect(ids({ collections: new Set(['fest']), free: true })).toEqual(['d']);
+    expect(ids({ collections: new Set(['fest']), day: '2026-10-08' })).toEqual(['d']);
+  });
+
+  it('collection counts follow day, Gratis, category and source filters, not the selected collections', () => {
+    expect(collectionCounts(events, 'todos', WED_NOON, TZ)).toEqual({ fest: 3, otra: 2 });
+    expect(collectionCounts(events, '2026-10-08', WED_NOON, TZ)).toEqual({ fest: 1, otra: 1 });
+    expect(collectionCounts(events, 'todos', WED_NOON, TZ, true)).toEqual({ fest: 1, otra: 1 });
+    expect(collectionCounts(events, 'todos', WED_NOON, TZ, false, new Set(['film']))).toEqual({ fest: 1 });
+    expect(collectionCounts(events, 'todos', WED_NOON, TZ, false, new Set(), new Set(['arema']))).toEqual({ otra: 1 });
+  });
+
+  it('category and source counts follow the selected collections', () => {
+    expect(categoryCounts(events, 'todos', WED_NOON, TZ, false, none, new Set(['fest']))).toMatchObject({ music: 2, film: 1 });
+    expect(sourceCounts(events, 'todos', WED_NOON, TZ, false, new Set(), new Set(['fest']))).toEqual({ manual: 3 });
+  });
+
+  it('shows a collection with events, keeps a selected one at 0, and never an unknown slug', () => {
+    const order = ['fest', 'otra'];
+    expect([...shownCollections({ fest: 2 }, none, order)]).toEqual(['fest']);
+    expect([...shownCollections({ fest: 2 }, new Set(['otra']), order)]).toEqual(['fest', 'otra']);
+    expect([...shownCollections({}, new Set(['nope']), order)]).toEqual([]);
   });
 });

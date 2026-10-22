@@ -8,12 +8,12 @@ const NOW = new Date('2026-10-04T18:00:00Z'); // Sunday 4 Oct, noon in Monterrey
 
 describe('URL state', () => {
   it('reads day, categories and gratis', () => {
-    expect(parseUrlState('?cuando=finde&cat=musica,cine&gratis=1')).toEqual({ day: 'finde', categories: ['music', 'film'], sources: [], free: true });
+    expect(parseUrlState('?cuando=finde&cat=musica,cine&gratis=1')).toEqual({ day: 'finde', categories: ['music', 'film'], sources: [], collections: [], free: true });
     expect(parseUrlState('?cuando=2026-10-06').day).toBe('2026-10-06');
   });
   it('ignores junk', () => {
-    expect(parseUrlState('?cuando=ayer&cat=zzz&gratis=0')).toEqual({ day: null, categories: [], sources: [], free: false });
-    expect(parseUrlState('')).toEqual({ day: null, categories: [], sources: [], free: false });
+    expect(parseUrlState('?cuando=ayer&cat=zzz&gratis=0')).toEqual({ day: null, categories: [], sources: [], collections: [], free: false });
+    expect(parseUrlState('')).toEqual({ day: null, categories: [], sources: [], collections: [], free: false });
   });
   it('round-trips and leaves the default day out', () => {
     const state = { day: 'finde' as const, categories: new Set(['film', 'music'] as const), free: true };
@@ -39,11 +39,25 @@ describe('URL state: sources', () => {
     const state = { day: 'finde' as const, categories: new Set(['music'] as const), sources: new Set(['arema', 'ticketmaster']), free: true };
     const query = serializeUrlState(state, 'hoy');
     expect(query).toBe('?cuando=finde&cat=musica&fuente=arema,ticketmaster&gratis=1');
-    expect(parseUrlState(query)).toEqual({ day: 'finde', categories: ['music'], sources: ['arema', 'ticketmaster'], free: true });
+    expect(parseUrlState(query)).toEqual({ day: 'finde', categories: ['music'], sources: ['arema', 'ticketmaster'], collections: [], free: true });
   });
   it('leaves ?fuente= out when no source is selected', () => {
     expect(serializeUrlState({ day: 'hoy', categories: new Set(), sources: new Set(), free: false }, 'hoy')).toBe('');
     expect(serializeUrlState({ day: 'hoy', categories: new Set(), free: false }, 'hoy')).toBe('');
+  });
+});
+
+describe('URL state: collections (?festival=)', () => {
+  it('reads and writes ?festival= like the other lists, and drops anything that is not a slug', () => {
+    expect(parseUrlState('?festival=santa-lucia').collections).toEqual(['santa-lucia']);
+    expect(parseUrlState('?festival=Santa-Lucia,santa-lucia,<b>,a b').collections).toEqual(['santa-lucia']);
+    expect(parseUrlState('?festival=' + 'a'.repeat(61)).collections).toEqual([]);
+    const state = { day: 'hoy' as const, categories: new Set<never>(), sources: new Set(['arema']), collections: new Set(['santa-lucia']), free: false };
+    expect(serializeUrlState(state, 'hoy')).toBe('?fuente=arema&festival=santa-lucia');
+    expect(parseUrlState('?fuente=arema&festival=santa-lucia')).toMatchObject({ sources: ['arema'], collections: ['santa-lucia'] });
+  });
+  it('leaves it out when empty', () => {
+    expect(serializeUrlState({ day: 'hoy', categories: new Set<never>(), collections: new Set<string>(), free: false }, 'hoy')).toBe('');
   });
 });
 

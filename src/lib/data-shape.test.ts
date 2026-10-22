@@ -25,7 +25,8 @@ function contractSuite(dir: string) {
 
   const ISO_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
   const CATEGORIES = ['music', 'comedy', 'theatre', 'film', 'arts', 'sports', 'family', 'community', 'other'];
-  const EVENT_KEYS = ['category', 'end', 'has_time', 'id', 'image_url', 'is_free', 'source', 'sources', 'start', 'title', 'url', 'venue'];
+  const OPTIONAL_KEYS = ['collections']; // additive, optional fields of the contract
+const EVENT_KEYS = ['category', 'end', 'has_time', 'id', 'image_url', 'is_free', 'source', 'sources', 'start', 'title', 'url', 'venue'];
   const ONGOING_KEYS = ['category', 'end', 'id', 'image_url', 'start', 'title', 'url', 'venue'];
   const nullableString = (v: unknown) => v === null || (typeof v === 'string' && v.length > 0);
   const isUrl = (v: unknown) => typeof v === 'string' && /^https?:\/\/[^\s]+$/.test(v);
@@ -39,7 +40,8 @@ function contractSuite(dir: string) {
     it('has an entry for every city file, and each entry is complete', () => {
       expect(Object.keys(meta.cities).sort()).toEqual(cityFiles.map((f) => f.replace('.json', '')).sort());
       for (const [slug, city] of Object.entries<any>(meta.cities)) {
-        expect(Object.keys(city).sort()).toEqual(['name', 'slug', 'sources', 'timezone']);
+        expect(Object.keys(city).filter((k) => !OPTIONAL_KEYS.includes(k)).sort()).toEqual(['name', 'slug', 'sources', 'timezone']);
+      for (const c of city.collections ?? []) expect(Object.keys(c).sort()).toEqual(['name', 'slug']);
         expect(city.slug).toBe(slug);
         expect(typeof city.name).toBe('string');
         expect(() => new Intl.DateTimeFormat('en', { timeZone: city.timezone })).not.toThrow(); // a real IANA zone
@@ -64,7 +66,8 @@ function contractSuite(dir: string) {
 
     it('events have exactly the documented fields, types and nullability', () => {
       for (const e of data.events) {
-        expect(Object.keys(e).sort()).toEqual(EVENT_KEYS); // no raw, no description, no internal fields
+        expect(Object.keys(e).filter((k) => !OPTIONAL_KEYS.includes(k)).sort()).toEqual(EVENT_KEYS); // no raw, no description, no internal fields
+      if (e.collections !== undefined) expect(e.collections.every((c: unknown) => typeof c === 'string' && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(c as string))).toBe(true);
         expect(typeof e.id === 'string' && e.id.length > 0).toBe(true);
         expect(typeof e.title === 'string' && e.title.length > 0).toBe(true);
         expect(e.start).toMatch(ISO_OFFSET);
@@ -88,7 +91,7 @@ function contractSuite(dir: string) {
 
     it('ongoing entries have exactly the documented fields, and none has ended', () => {
       for (const o of data.ongoing) {
-        expect(Object.keys(o).sort()).toEqual(ONGOING_KEYS);
+        expect(Object.keys(o).filter((k) => !OPTIONAL_KEYS.includes(k)).sort()).toEqual(ONGOING_KEYS);
         expect(o.start).toMatch(ISO_OFFSET);
         expect(o.end === null || ISO_OFFSET.test(o.end)).toBe(true);
         if (o.end) expect(Date.parse(o.end)).toBeGreaterThanOrEqual(generated); // "never in the past at generated_at"

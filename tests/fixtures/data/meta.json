@@ -11,6 +11,12 @@
      "name": "Fuente de muestra",
      "url": "https://conarte.org.mx"
     }
+   ],
+   "collections": [
+    {
+     "slug": "festival-muestra",
+     "name": "Festival de muestra"
+    }
    ]
   }
  }

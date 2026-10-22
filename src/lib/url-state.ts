@@ -21,28 +21,30 @@ export interface UrlState {
   categories: Category[];
   /** Source slugs from ?fuente=. Which ones exist is the page's business; unknown slugs are dropped there. */
   sources: string[];
+  /** Collection (festival) slugs from ?festival=. */
+  collections: string[];
   free: boolean;
 }
 
 const SOURCE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_SOURCES = 20;
 
-/** Read ?cuando=hoy|manana|finde|7dias|todos|YYYY-MM-DD, ?cat=musica,cine, ?fuente=ticketmaster,arema and ?gratis=1. Anything else is ignored. */
+const slugList = (raw: string | null): string[] =>
+  [...new Set((raw ?? '').split(',').map((s) => s.trim().toLowerCase()))].filter((slug) => slug.length <= 60 && SOURCE_SLUG.test(slug)).slice(0, MAX_SOURCES);
+
+/** Read ?cuando=hoy|manana|finde|7dias|todos|YYYY-MM-DD, ?cat=musica,cine, ?fuente=ticketmaster,arema, ?festival=santa-lucia and ?gratis=1. Anything else is ignored. */
 export function parseUrlState(search: string): UrlState {
   const params = new URLSearchParams(search);
   const cuando = params.get('cuando') ?? '';
   const day = (DAY_PARAMS as readonly string[]).includes(cuando) || isDateKey(cuando) ? (cuando as DayFilter) : null;
   const wanted = (params.get('cat') ?? '').split(',').map((s) => s.trim());
   const categories = CATEGORIES.map((c) => c.id).filter((id) => wanted.includes(CATEGORY_SLUGS[id]));
-  const sources = [...new Set((params.get('fuente') ?? '').split(',').map((s) => s.trim().toLowerCase()))]
-    .filter((slug) => slug.length <= 60 && SOURCE_SLUG.test(slug))
-    .slice(0, MAX_SOURCES);
-  return { day, categories, sources, free: params.get('gratis') === '1' };
+  return { day, categories, sources: slugList(params.get('fuente')), collections: slugList(params.get('festival')), free: params.get('gratis') === '1' };
 }
 
 /** The query string ("" or "?…") for a state. The default day is left out so the plain URL stays clean. */
 export function serializeUrlState(
-  state: { day: DayFilter; categories: ReadonlySet<Category>; sources?: ReadonlySet<string>; free: boolean },
+  state: { day: DayFilter; categories: ReadonlySet<Category>; sources?: ReadonlySet<string>; collections?: ReadonlySet<string>; free: boolean },
   defaultDay: DayFilter,
 ): string {
   const params = new URLSearchParams();
@@ -50,6 +52,7 @@ export function serializeUrlState(
   const cats = CATEGORIES.map((c) => c.id).filter((id) => state.categories.has(id));
   if (cats.length > 0) params.set('cat', cats.map((id) => CATEGORY_SLUGS[id]).join(','));
   if (state.sources && state.sources.size > 0) params.set('fuente', [...state.sources].sort().join(','));
+  if (state.collections && state.collections.size > 0) params.set('festival', [...state.collections].sort().join(','));
   if (state.free) params.set('gratis', '1');
   const query = params.toString().replace(/%2C/gi, ',');
   return query ? `?${query}` : '';

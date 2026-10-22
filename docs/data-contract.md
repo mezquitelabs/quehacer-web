@@ -30,6 +30,7 @@ src/data/
 | `cities.<slug>.slug` | string | no | Same as the key; also the URL segment (`/<slug>/`). |
 | `cities.<slug>.name` | string | no | Display name, e.g. `Monterrey`. |
 | `cities.<slug>.timezone` | string | no | IANA zone name, e.g. `America/Monterrey`. **The reference for every "local" date.** |
+| `cities.<slug>.collections` | array | **absent** when none | Collections (a festival or series) that have something to show right now: `{ "slug": string, "name": string }`, in display order. Optional and additive (no version bump). |
 | `cities.<slug>.sources` | array | no | Sources that actually contribute to this city's file. Each `{ "name": string, "url": string \| null }`: the source's display name and its public site (`null` if unknown). May be empty. |
 
 ## `<city>.json`
@@ -53,6 +54,7 @@ Both arrays are always present and may be empty. UTF-8, no BOM.
 | `category` | string | no | One of `music`, `comedy`, `theatre`, `film`, `arts`, `sports`, `family`, `community`, `other` (see "Categories"). |
 | `is_free` | boolean \| null | yes | `true`/`false` only when a source says so (a price of 0 or "entrada libre" / a price above 0). **`null` means unknown, never "free".** |
 | `image_url` | string \| null | yes | Absolute URL on the source's own server (hotlinked, may disappear). `null` when there is none. |
+| `collections` | array of strings | **absent** when none | Slugs of the collections the event belongs to, e.g. `["santa-lucia"]` (names are in `meta.json`). Optional and additive: a consumer that does not know it ignores it. |
 | `url` | string \| null | yes | Absolute URL of the **original page** of the winning source. `null` only if no contributing source has one. |
 | `source` | string | no | Display name of the winning source (the highest-priority contributor). |
 | `sources` | array | no | Every contributing source, best first, at least one: `{ "name": string, "url": string \| null }`. The first is the winner. When the same event appears in several sources it is exported once with all of them. |
@@ -69,6 +71,7 @@ Both arrays are always present and may be empty. UTF-8, no BOM.
 | `category` | string | no | As in `events`. |
 | `url` | string \| null | yes | Original page. |
 | `image_url` | string \| null | yes | As in `events`. |
+| `collections` | array of strings | **absent** when none | As in `events`. |
 
 There is deliberately no `has_time`, `is_free` or `source` here.
 

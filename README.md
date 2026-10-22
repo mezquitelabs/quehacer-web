@@ -60,6 +60,11 @@ Filters (client-side, no reload; with JS disabled the full list is simply shown)
   and Sunday (on Saturday it starts today; on Sunday only today is left). "Próximos 7 días" is today plus the next six.
 - **Category** chips, multi-select (none selected = all), each with a count of **events** (not cards). The counts follow the
   day filter. Chips with no events are hidden, except one the visitor has selected (so it can still be un-selected).
+- **Collections** (a festival or series that cuts across categories and sources, e.g. "Festival Santa Lucía"): one chip next to Gratis per collection
+  that has events right now (it disappears by itself when the festival ends), with its count, multi-select like the others, and
+  `?festival=santa-lucia` links straight to it. Events keep their real category. The chips come from `meta.json` (`collections`) and the
+  events' optional `collections` slugs, which the crawler sets from its own `cities.toml`; the counts of categories and sources follow
+  the selected collections and the other way round.
 - **Fuentes** (sources), next to Categorías: one chip per source that has events, biggest first, multi-select (none selected = all),
   each with a count. An event that several sources list **matches through any of them** and counts once under each. The chips are
   built from the data (a new source shows up by itself); their counts follow the day, Gratis and category filters, and the category

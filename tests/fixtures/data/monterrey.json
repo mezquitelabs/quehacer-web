@@ -17,6 +17,9 @@
      "name": "Fuente de muestra",
      "url": "https://conarte.org.mx/evento-1"
     }
+   ],
+   "collections": [
+    "festival-muestra"
    ]
   },
   {
@@ -48,7 +51,10 @@
    "venue": null,
    "category": "arts",
    "url": "https://conarte.org.mx/expo",
-   "image_url": null
+   "image_url": null,
+   "collections": [
+    "festival-muestra"
+   ]
   }
  ]
 }

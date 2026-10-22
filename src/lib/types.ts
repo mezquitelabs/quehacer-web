@@ -18,6 +18,8 @@ export interface EventItem {
   url: string | null;
   source: string;
   sources: SourceRef[];
+  /** Slugs of the collections (a festival) the event belongs to; absent when none. */
+  collections?: string[];
 }
 
 export interface OngoingItem {
@@ -29,6 +31,12 @@ export interface OngoingItem {
   category: Category;
   url: string | null;
   image_url: string | null;
+  collections?: string[];
+}
+
+export interface CollectionRef {
+  slug: string;
+  name: string;
 }
 
 export interface CityFile {
@@ -41,6 +49,8 @@ export interface CityMeta {
   name: string;
   timezone: string;
   sources: SourceRef[];
+  /** Collections that have something to show right now (optional in the data contract). */
+  collections?: CollectionRef[];
 }
 
 export interface Meta {

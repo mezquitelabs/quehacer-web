@@ -89,3 +89,22 @@ describe('data guard', () => {
     }
   });
 });
+
+describe('data guard: collections', () => {
+  it('accepts plain slugs on events, ongoing entries and in meta', () => {
+    expect(run(file(event({ collections: ['santa-lucia', 'fil-2026'] })))).not.toThrow();
+    const meta = (collections: unknown) => ({ schema_version: 2, generated_at: 'g', cities: { monterrey: { slug: 'monterrey', name: 'M', timezone: 'America/Monterrey', sources: [], collections } } });
+    expect(() => assertSafeMeta(meta([{ slug: 'santa-lucia', name: 'Festival Santa Lucía' }]), hosts)).not.toThrow();
+    expect(() => assertSafeMeta(meta(undefined), hosts)).not.toThrow();
+  });
+  it('rejects anything else, with where it is', () => {
+    expect(run(file(event({ collections: 'santa-lucia' })))).toThrow(/collections is not an array/);
+    expect(run(file(event({ collections: ['Santa Lucía'] })))).toThrow(/collections\[0\] is not a plain slug/);
+    expect(run(file(event({ collections: ['<script>'] })))).toThrow(/plain slug/);
+    expect(run(file(event({ collections: ['a'.repeat(61)] })))).toThrow(/plain slug/);
+    const meta = (collections: unknown) => ({ schema_version: 2, generated_at: 'g', cities: { monterrey: { slug: 'monterrey', name: 'M', timezone: 'America/Monterrey', sources: [], collections } } });
+    expect(() => assertSafeMeta(meta('x'), hosts)).toThrow(/collections is not an array/);
+    expect(() => assertSafeMeta(meta([{ slug: 'ok', name: '' }]), hosts)).toThrow(/needs a plain slug and a name/);
+    expect(() => assertSafeMeta(meta([{ slug: 'Bad Slug', name: 'x' }]), hosts)).toThrow(/needs a plain slug and a name/);
+  });
+});

@@ -11,6 +11,8 @@ export const MAX_ITEMS = 20000;
 const LINK_FIELDS = ['url', 'image_url'];
 const COORD_RANGES: Record<string, number> = { lat: 90, latitude: 90, lon: 180, lng: 180, longitude: 180 };
 
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 const HINT = 'To accept a new host, add it to src/lib/allowed-hosts.json (see "Allowed hosts" in the README); otherwise the data is wrong.';
 
 export function allowedHosts(list: { hosts: string[] }): Set<string> {
@@ -56,6 +58,13 @@ function checkItem(item: unknown, where: string, hosts: Set<string>, problems: s
     const problem = linkProblem(record[field], hosts);
     if (problem) problems.push(`${where}.${field} ${problem}`);
   }
+  if (record.collections !== undefined) {
+    const list = record.collections;
+    if (!Array.isArray(list)) problems.push(`${where}.collections is not an array`);
+    else list.forEach((slug, i) => {
+      if (typeof slug !== 'string' || !SLUG.test(slug) || slug.length > 60) problems.push(`${where}.collections[${i}] is not a plain slug`);
+    });
+  }
   if (Array.isArray(record.sources)) {
     record.sources.forEach((s: any, i: number) => {
       if (s && s.url !== null && s.url !== undefined) {
@@ -92,6 +101,14 @@ export function assertSafeMeta(meta: unknown, hosts: Set<string>): void {
       const problem = linkProblem(s.url, hosts);
       if (problem) problems.push(`cities.${slug}.sources[${i}].url ${problem}`);
     });
+  }
+  for (const [slug, city] of Object.entries((meta as { cities?: Record<string, { collections?: unknown }> })?.cities ?? {})) {
+    if (city?.collections === undefined) continue;
+    if (!Array.isArray(city.collections)) problems.push(`cities.${slug}.collections is not an array`);
+    else
+      city.collections.forEach((c: any, i: number) => {
+        if (!c || typeof c.slug !== 'string' || !SLUG.test(c.slug) || typeof c.name !== 'string' || c.name.length === 0) problems.push(`cities.${slug}.collections[${i}] needs a plain slug and a name`);
+      });
   }
   checkStrings(meta, '', problems);
   report('src/data/meta.json', problems);

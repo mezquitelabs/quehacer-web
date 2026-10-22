@@ -43,6 +43,8 @@ export interface Filterable {
   free?: boolean;
   /** Slugs (see `sourceSlug`) of EVERY source that lists the event, not only the one shown. */
   src?: string[];
+  /** Slugs of the collections (festivals) the event belongs to. */
+  col?: string[];
 }
 
 /** A stable, URL-safe name for a source: "Gobierno de Nuevo León" -> "gobierno-de-nuevo-leon". */
@@ -59,6 +61,11 @@ const NO_SOURCES: ReadonlySet<string> = new Set();
 /** No source selected means all of them; an event matches when ANY of the sources that list it is selected. */
 export function matchesSource(src: readonly string[] | undefined, selected: ReadonlySet<string>): boolean {
   return selected.size === 0 || (src ?? []).some((s) => selected.has(s));
+}
+
+/** No collection selected means all events; otherwise the event must belong to ANY selected collection. */
+export function matchesCollection(col: readonly string[] | undefined, selected: ReadonlySet<string>): boolean {
+  return selected.size === 0 || (col ?? []).some((c) => selected.has(c));
 }
 
 /** YYYY-MM-DD of an instant in the CITY's timezone (never the browser's), so dates near midnight are right. */
@@ -123,6 +130,8 @@ export interface FilterState {
   categories: ReadonlySet<Category>;
   /** Source slugs; empty or missing means every source. */
   sources?: ReadonlySet<string>;
+  /** Collection slugs (festivals); empty or missing means everything. */
+  collections?: ReadonlySet<string>;
   /** Only events known to be free. */
   free?: boolean;
 }
@@ -135,6 +144,7 @@ export function visibleIds(events: Filterable[], state: FilterState, now: Date, 
           matchesDay(e.day, state.day, now, timeZone) &&
           matchesCategory(e.cat, state.categories) &&
           matchesSource(e.src, state.sources ?? NO_SOURCES) &&
+          matchesCollection(e.col, state.collections ?? NO_SOURCES) &&
           (!state.free || e.free === true),
       )
       .map((e) => e.id),
@@ -152,10 +162,13 @@ export function categoryCounts(
   timeZone: string,
   free = false,
   sources: ReadonlySet<string> = NO_SOURCES,
+  collections: ReadonlySet<string> = NO_SOURCES,
 ): Record<Category, number> {
   const counts = Object.fromEntries(CATEGORIES.map((c) => [c.id, 0])) as Record<Category, number>;
   for (const e of events) {
-    if (matchesDay(e.day, day, now, timeZone) && (!free || e.free === true) && matchesSource(e.src, sources)) counts[normalizeCategory(e.cat)] += 1;
+    if (matchesDay(e.day, day, now, timeZone) && (!free || e.free === true) && matchesSource(e.src, sources) && matchesCollection(e.col, collections)) {
+      counts[normalizeCategory(e.cat)] += 1;
+    }
   }
   return counts;
 }
@@ -171,13 +184,41 @@ export function sourceCounts(
   timeZone: string,
   free = false,
   categories: ReadonlySet<Category> = new Set(),
+  collections: ReadonlySet<string> = NO_SOURCES,
 ): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const e of events) {
     if (!matchesDay(e.day, day, now, timeZone) || (free && e.free !== true) || !matchesCategory(e.cat, categories)) continue;
+    if (!matchesCollection(e.col, collections)) continue;
     for (const slug of new Set(e.src ?? [])) counts[slug] = (counts[slug] ?? 0) + 1;
   }
   return counts;
+}
+
+/**
+ * Events per collection among those that pass the DAY, Gratis, category and source filters, regardless of which collections are
+ * selected. An event can belong to several collections and counts once under each.
+ */
+export function collectionCounts(
+  events: Filterable[],
+  day: DayFilter,
+  now: Date,
+  timeZone: string,
+  free = false,
+  categories: ReadonlySet<Category> = new Set(),
+  sources: ReadonlySet<string> = NO_SOURCES,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const e of events) {
+    if (!matchesDay(e.day, day, now, timeZone) || (free && e.free !== true) || !matchesCategory(e.cat, categories) || !matchesSource(e.src, sources)) continue;
+    for (const slug of new Set(e.col ?? [])) counts[slug] = (counts[slug] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/** Which collection chips to show: those with events under the current filters, plus a selected one (so it can be un-selected). */
+export function shownCollections(counts: Record<string, number>, selected: ReadonlySet<string>, order: readonly string[]): Set<string> {
+  return new Set(order.filter((slug) => (counts[slug] ?? 0) > 0 || selected.has(slug)));
 }
 
 /**

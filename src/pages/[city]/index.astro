@@ -3,7 +3,7 @@ import Layout from '../../components/Layout.astro';
 import EventCard from '../../components/EventCard.astro';
 import EventGroup from '../../components/EventGroup.astro';
 import { loadCities } from '../../lib/data';
-import { CATEGORIES, DAY_FILTERS, categoryCounts, localDateKey, primaryCategories, shownSources, sourceCounts, sourceSlug } from '../../lib/filters';
+import { CATEGORIES, DAY_FILTERS, categoryCounts, collectionCounts, localDateKey, primaryCategories, shownCollections, shownSources, sourceCounts, sourceSlug } from '../../lib/filters';
 import { formatDayHeading } from '../../lib/format';
 import { groupDay, groupMinFromEnv, placeGroups } from '../../lib/group';
 import { withBase } from '../../lib/url';
@@ -38,19 +38,26 @@ const sourceList = [...sourceNames.entries()]
   .map(([slug, v]) => ({ slug, name: v.name, total: v.total }))
   .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
 
+// Collections (a festival): the chips come from meta.json, which lists only the ones that have something to show right now.
+const collectionList = city.collections ?? [];
+
 // Embedded once, for the filters: just what they need.
 const filterData = {
   timeZone: tz,
   sourceOrder: sourceList.map((s) => s.slug),
+  collectionOrder: collectionList.map((c) => c.slug),
   events: city.events.map((e) => ({
     id: e.id, day: localDateKey(e.start, tz), cat: e.category, start: e.start, end: e.end, hasTime: e.has_time, free: e.is_free === true,
     src: [...new Set(e.sources.map((s) => sourceSlug(s.name)))],
+    col: e.collections ?? [],
   })),
 };
 const initialCounts = categoryCounts(filterData.events, 'todos', new Date(), tz);
 const initiallyShown = primaryCategories(initialCounts, new Set());
 const initialSourceCounts = sourceCounts(filterData.events, 'todos', new Date(), tz);
 const initialSources = shownSources(initialSourceCounts, new Set(), filterData.sourceOrder);
+const initialCollectionCounts = collectionCounts(filterData.events, 'todos', new Date(), tz);
+const initialCollections = shownCollections(initialCollectionCounts, new Set(), filterData.collectionOrder);
 const json = JSON.stringify(filterData).replace(/</g, '\\u003c'); // so the data can never close its own tag early
 const names = city.sources.map((s) => s.name).join(', ');
 ---
@@ -77,6 +84,11 @@ const names = city.sources.map((s) => s.name).join(', ');
   <div class="controls">
     <div id="refine" class="refine-row" hidden>
       <button type="button" class="chip" data-free-btn aria-pressed="false">Gratis</button>
+      {collectionList.map((c) => (
+        <button type="button" class="chip" data-col-btn={c.slug} aria-pressed="false" hidden={!initialCollections.has(c.slug)}>
+          {c.name} <span class="count" data-col-count-for={c.slug}>{initialCollectionCounts[c.slug] ?? 0}</span>
+        </button>
+      ))}
       <button type="button" class="chip" id="cat-toggle" aria-expanded="false" aria-controls="cat-panel">
         <span id="cat-toggle-label">Categorías</span><span class="chev" aria-hidden="true"></span>
       </button>
@@ -138,7 +150,7 @@ const names = city.sources.map((s) => s.name).join(', ');
 
   <script is:inline type="application/json" id="events-data" set:html={json}></script>
   <script>
-    import { CATEGORIES, addDays, categoryCounts, defaultDay, isDateKey, liveEvents, localDateKey, matchesSource, nextDayWithEvents, primaryCategories, dayRange, shownSources, sourceCounts, visibleIds, type DayFilter, type Filterable, type Timed } from '../../lib/filters';
+    import { CATEGORIES, addDays, categoryCounts, defaultDay, isDateKey, liveEvents, localDateKey, matchesCollection, matchesSource, nextDayWithEvents, primaryCategories, dayRange, shownCollections, shownSources, sourceCounts, collectionCounts, visibleIds, type DayFilter, type Filterable, type Timed } from '../../lib/filters';
     import { formatDayShort } from '../../lib/format';
     import { groupNoun, timeRange } from '../../lib/group';
     import { parseUrlState, serializeUrlState } from '../../lib/url-state';
@@ -146,7 +158,7 @@ const names = city.sources.map((s) => s.name).join(', ');
 
     const dataEl = document.getElementById('events-data');
     if (dataEl) {
-      const { timeZone, events, sourceOrder = [] } = JSON.parse(dataEl.textContent ?? '{}') as { timeZone: string; events: (Filterable & Timed)[]; sourceOrder?: string[] };
+      const { timeZone, events, sourceOrder = [], collectionOrder = [] } = JSON.parse(dataEl.textContent ?? '{}') as { timeZone: string; events: (Filterable & Timed)[]; sourceOrder?: string[]; collectionOrder?: string[] };
       const $ = <T extends Element>(sel: string) => Array.from(document.querySelectorAll<T>(sel));
       const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const cards = new Map($<HTMLElement>('[data-id]').map((el) => [el.dataset.id!, el]));
@@ -163,10 +175,11 @@ const names = city.sources.map((s) => s.name).join(', ');
       const srcPanel = document.getElementById('src-panel');
       const srcToggle = document.getElementById('src-toggle') as HTMLButtonElement | null;
       const knownSources = new Set<string>(sourceOrder);
+      const knownCollections = new Set<string>(collectionOrder);
 
       const startedAt = new Date();
       const def = defaultDay(liveEvents(events, startedAt, timeZone), startedAt, timeZone);
-      const state: { day: DayFilter; categories: Set<Category>; sources: Set<string>; free: boolean } = { day: def, categories: new Set(), sources: new Set(), free: false };
+      const state: { day: DayFilter; categories: Set<Category>; sources: Set<string>; collections: Set<string>; free: boolean } = { day: def, categories: new Set(), sources: new Set(), collections: new Set(), free: false };
       let nextDay: DayFilter | null = null;
 
       const readUrl = () => {
@@ -174,6 +187,7 @@ const names = city.sources.map((s) => s.name).join(', ');
         state.day = u.day ?? def;
         state.categories = new Set(u.categories);
         state.sources = new Set(u.sources.filter((slug) => knownSources.has(slug))); // a slug from an old link may no longer exist
+        state.collections = new Set(u.collections.filter((slug) => knownCollections.has(slug))); // an old link may name one that has ended
         state.free = u.free;
       };
       const writeUrl = () => {
@@ -212,7 +226,7 @@ const names = city.sources.map((s) => s.name).join(', ');
           const key = section.dataset.day;
           section.querySelector('[data-day-tag]')!.textContent = key === today ? 'Hoy' : key === tomorrow ? 'Mañana' : '';
         }
-        const counts = categoryCounts(live, state.day, now, timeZone, state.free, state.sources);
+        const counts = categoryCounts(live, state.day, now, timeZone, state.free, state.sources, state.collections);
         for (const { id } of CATEGORIES) {
           const span = document.querySelector<HTMLElement>(`[data-count-for="${id}"]`);
           if (span) span.textContent = String(counts[id]);
@@ -222,7 +236,14 @@ const names = city.sources.map((s) => s.name).join(', ');
           b.hidden = !shownCats.has(b.dataset.catBtn as Category);
           b.setAttribute('aria-pressed', String(state.categories.has(b.dataset.catBtn as Category)));
         });
-        const srcCounts = sourceCounts(live, state.day, now, timeZone, state.free, state.categories);
+        const srcCounts = sourceCounts(live, state.day, now, timeZone, state.free, state.categories, state.collections);
+        const colCounts = collectionCounts(live, state.day, now, timeZone, state.free, state.categories, state.sources);
+        const shownCols = shownCollections(colCounts, state.collections, collectionOrder);
+        $<HTMLElement>('[data-col-count-for]').forEach((span) => (span.textContent = String(colCounts[span.dataset.colCountFor!] ?? 0)));
+        $<HTMLElement>('[data-col-btn]').forEach((b) => {
+          b.hidden = !shownCols.has(b.dataset.colBtn!);
+          b.setAttribute('aria-pressed', String(state.collections.has(b.dataset.colBtn!)));
+        });
         const shownSrc = shownSources(srcCounts, state.sources, sourceOrder);
         $<HTMLElement>('[data-src-count-for]').forEach((span) => (span.textContent = String(srcCounts[span.dataset.srcCountFor!] ?? 0)));
         $<HTMLElement>('[data-src-btn]').forEach((b) => {
@@ -240,15 +261,22 @@ const names = city.sources.map((s) => s.name).join(', ');
           render();
         }),
       );
+      $<HTMLElement>('[data-col-btn]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const slug = b.dataset.colBtn!;
+          state.collections.has(slug) ? state.collections.delete(slug) : state.collections.add(slug);
+          render();
+        }),
+      );
       $<HTMLElement>('[data-free-btn]').forEach((b) => b.setAttribute('aria-pressed', String(state.free)));
 
-        const filtered = state.categories.size > 0 || state.sources.size > 0 || state.free;
+        const filtered = state.categories.size > 0 || state.sources.size > 0 || state.collections.size > 0 || state.free;
         const inDay = visibleIds(live, { day: state.day, categories: new Set() }, now, timeZone);
         noneEl.hidden = live.length > 0 || events.length === 0;
         emptyEl.hidden = ids.size > 0 || live.length === 0;
         if (!emptyEl.hidden) {
           const range = dayRange(state.day, now, timeZone);
-          const matching = live.filter((e) => (state.categories.size === 0 || state.categories.has(e.cat)) && matchesSource(e.src, state.sources) && (!state.free || e.free === true));
+          const matching = live.filter((e) => (state.categories.size === 0 || state.categories.has(e.cat)) && matchesSource(e.src, state.sources) && matchesCollection(e.col, state.collections) && (!state.free || e.free === true));
           nextDay = nextDayWithEvents(matching, range ? range.to : today);
           emptyMsg.textContent = inDay.size === 0 ? `Sin eventos ${whenText(state.day)}.` : 'Ningún evento coincide con estos filtros.';
           nextBtn.hidden = nextDay === null;
@@ -307,6 +335,7 @@ const names = city.sources.map((s) => s.name).join(', ');
       resetBtn.addEventListener('click', () => {
         state.categories.clear();
         state.sources.clear();
+        state.collections.clear();
         state.free = false;
         render();
       });
